@@ -83,13 +83,8 @@
 
         <div id="content-area" class="flex-1 overflow-y-auto p-4 md:p-8 relative"></div>
         <div id="status-badge" class="status-badge status-demo hidden"><i class="fa-solid fa-circle-info"></i><span id="status-text">โหมดจำลอง</span></div>
-        
-        <!-- Loading Overlay with Dynamic Text -->
-        <div id="loading-overlay" class="absolute inset-0 bg-white/90 z-[60] flex items-center justify-center hidden">
-            <div class="text-center">
-                <i class="fa-solid fa-spinner fa-spin text-5xl text-emerald-600 mb-4"></i>
-                <p class="text-emerald-800 font-bold text-lg animate-pulse" id="loading-text">กำลังโหลดข้อมูล...</p>
-            </div>
+        <div id="loading-overlay" class="absolute inset-0 bg-white/80 z-50 flex items-center justify-center hidden">
+            <div class="text-center"><i class="fa-solid fa-spinner fa-spin text-4xl text-emerald-600 mb-2"></i><p class="text-emerald-800 font-semibold" id="loading-text">กำลังโหลดข้อมูล...</p></div>
         </div>
     </main>
 
@@ -158,7 +153,7 @@
                     document.getElementById('login-screen').classList.add('hidden');
                     updateNavAndRedirect();
                 } catch(e) {
-                    localStorage.removeItem('soilAppUser'); // Clear corrupted data
+                    localStorage.removeItem('soilAppUser'); 
                 }
             }
         }
@@ -177,11 +172,11 @@
             const pass = document.getElementById('login-pass').value;
             const remember = document.getElementById('remember-me').checked;
             
-            // Set specific loading text for login
+            // แสดงสถานะการโหลด
             showLoading("กำลังตรวจสอบข้อมูล...");
             
             try {
-                // Call API but keep overlay ON (don't hide inside apiCall yet)
+                // เรียก API โดยยังไม่ซ่อน Loading (autoHideLoading = false)
                 const res = await apiCall('login', { username: user, password: pass }, false); 
                 
                 if (res.status === 'success') {
@@ -190,16 +185,14 @@
                     if (remember) localStorage.setItem('soilAppUser', JSON.stringify(currentUser));
                     document.getElementById('login-screen').classList.add('hidden');
                     
-                    // Render sidebar immediately
                     renderSidebar();
                     updateNavUser();
                     
-                    // Fetch data while showing loading
                     showLoading("กำลังดาวน์โหลดข้อมูลล่าสุด...");
-                    await refreshData();
+                    await refreshData(); // refreshData จะทำการซ่อน Loading เมื่อเสร็จสิ้น
                     router('dashboard');
                 } else {
-                    hideLoading();
+                    hideLoading(); // ซ่อน Loading กรณี Login ไม่ผ่าน
                     const errorDiv = document.getElementById('login-error-msg');
                     errorDiv.querySelector('span').textContent = res.message || "เกิดข้อผิดพลาดในการเข้าสู่ระบบ";
                     errorDiv.classList.remove('hidden');
@@ -215,20 +208,19 @@
             const payload = { username: document.getElementById('reg-user').value, password: document.getElementById('reg-pass').value, name: document.getElementById('reg-name').value, group: document.getElementById('reg-group').value };
             
             showLoading("กำลังลงทะเบียน...");
-            const res = await apiCall('register', payload);
-            
+            const res = await apiCall('register', payload, false); // ส่ง false เพื่อจัดการ hideLoading เอง
+            hideLoading();
+
             if (res.status === 'success') { 
-                alert('ขั้นตอนการสมัคใช้งานเรียบร้อยแล้ว โปรดแจ้ง admin เพื่อให้ยืนยันตัวตน'); 
+                // แจ้งเตือนข้อความใหม่
+                alert('ลงทะเบียนสำเร็จ! โปรดแจ้ง Admin เพื่อทำการอนุมัติสิทธิ์ก่อนเริ่มใช้งาน'); 
                 showLoginTab('login'); 
             } else { 
                 alert(res.message); 
             }
         }
 
-        function logout() { 
-            localStorage.removeItem('soilAppUser'); 
-            location.reload(); 
-        }
+        function logout() { localStorage.removeItem('soilAppUser'); location.reload(); }
         
         function showLoginTab(tab) {
             document.getElementById('login-error-msg').classList.add('hidden');
