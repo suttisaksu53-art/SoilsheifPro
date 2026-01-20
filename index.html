@@ -3,8 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Soilsheif Pro System - กลุ่มวิจัยเคมีดิน</title>
     
+    <!-- Title for Browser Tab -->
+    <title>ระบบบริหารจัดการตัวอย่างดินเพื่องานวิเคราะห์ดินในห้องปฏิบัติการ กลุ่มวิจัยเคมีดิน</title>
+    
+    <!-- Open Graph Tags (สำหรับแสดงผลเมื่อแชร์ใน LINE/Facebook) -->
+    <meta property="og:title" content="ระบบบริหารจัดการตัวอย่างดินเพื่องานวิเคราะห์ดินในห้องปฏิบัติการ กลุ่มวิจัยเคมีดิน">
+    <meta property="og:description" content="Soilsheif Pro System - ระบบติดตามและบริหารจัดการตัวอย่างดินแบบครบวงจร">
+    <meta property="og:type" content="website">
+    <!-- สามารถเพิ่ม og:image เพื่อใส่รูปปกตอนแชร์ได้ -->
+
     <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -93,8 +101,13 @@
 
         <div id="content-area" class="flex-1 overflow-y-auto p-4 md:p-8 relative"></div>
         <div id="status-badge" class="status-badge status-demo hidden"><i class="fa-solid fa-circle-info"></i><span id="status-text">โหมดจำลอง</span></div>
+        
+        <!-- Loading Overlay -->
         <div id="loading-overlay" class="fixed inset-0 bg-white/90 z-[200] flex items-center justify-center hidden">
-            <div class="text-center"><i class="fa-solid fa-spinner fa-spin text-5xl text-emerald-600 mb-4"></i><p class="text-emerald-800 font-bold text-lg animate-pulse" id="loading-text">กำลังโหลดข้อมูล...</p></div>
+            <div class="text-center">
+                <i class="fa-solid fa-spinner fa-spin text-5xl text-emerald-600 mb-4"></i>
+                <p class="text-emerald-800 font-bold text-lg animate-pulse" id="loading-text">กำลังโหลดข้อมูล...</p>
+            </div>
         </div>
     </main>
 
@@ -122,10 +135,17 @@
                 </form>
                 <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ใช้</label><input type="text" id="reg-user" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
+                    
+                    <!-- Password Field -->
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label><input type="password" id="reg-pass" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
+                    
+                    <!-- Confirm Password Field -->
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">ยืนยันรหัสผ่าน</label><input type="password" id="reg-pass-confirm" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
+                    
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล</label><input type="text" id="reg-name" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-                    <div><label class="block text-sm font-medium text-gray-700 mb-1">กลุ่มที่สังกัด</label><select id="reg-group" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">กลุ่มที่สังกัด</label>
+                        <select id="reg-group" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
                             <option value="ฝ่ายบริหารทั่วไป">ฝ่ายบริหารทั่วไป</option>
                             <option value="กลุ่มวิจัยเคมีดิน">กลุ่มวิจัยเคมีดิน</option>
                             <option value="กลุ่มวิจัยกายภาพดิน">กลุ่มวิจัยกายภาพดิน</option>
@@ -134,7 +154,8 @@
                             <option value="กลุ่มวิจัยแร่และจุลสัณฐานดิน">กลุ่มวิจัยแร่และจุลสัณฐานดิน</option>
                             <option value="กลุ่มมาตรฐานและพัฒนาระบบการวิเคราะห์">กลุ่มมาตรฐานและพัฒนาระบบการวิเคราะห์</option>
                             <option value="กลุ่มวิทยบริการ">กลุ่มวิทยบริการ</option>
-                    </select></div>
+                        </select>
+                    </div>
                     <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg transition-colors">ลงทะเบียน</button>
                 </form>
             </div>
@@ -145,7 +166,16 @@
         const MOCK_DELAY = 250;
         const HARDCODED_API_URL = "https://script.google.com/macros/s/AKfycbzb3O1kWnyJtD7jPor_rfnJOrD9df1Jzjb66QtBXeIzgyKZHXRq8FramTk6RGptFCRKLQ/exec";
         
-        const DEPARTMENTS = [ "ฝ่ายบริหารทั่วไป", "กลุ่มวิจัยเคมีดิน", "กลุ่มวิจัยกายภาพดิน", "กลุ่มวิจัยสิ่งแวดล้อม", "กลุ่มวิเคราะห์ วิจัย พืช ปุ๋ย และสิ่งปรับปรุงดิน", "กลุ่มวิจัยแร่และจุลสัณฐานดิน", "กลุ่มมาตรฐานและพัฒนาระบบการวิเคราะห์", "กลุ่มวิทยบริการ" ];
+        const DEPARTMENTS = [
+            "ฝ่ายบริหารทั่วไป",
+            "กลุ่มวิจัยเคมีดิน",
+            "กลุ่มวิจัยกายภาพดิน",
+            "กลุ่มวิจัยสิ่งแวดล้อม",
+            "กลุ่มวิเคราะห์ วิจัย พืช ปุ๋ย และสิ่งปรับปรุงดิน",
+            "กลุ่มวิจัยแร่และจุลสัณฐานดิน",
+            "กลุ่มมาตรฐานและพัฒนาระบบการวิเคราะห์",
+            "กลุ่มวิทยบริการ"
+        ];
 
         let currentUser = null;
         let items = [];
@@ -175,7 +205,9 @@
                     currentUser = JSON.parse(storedUser);
                     document.getElementById('login-screen').classList.add('hidden');
                     updateNavAndRedirect();
-                } catch(e) { localStorage.removeItem('soilAppUser'); }
+                } catch(e) {
+                    localStorage.removeItem('soilAppUser'); 
+                }
             }
         }
 
@@ -194,15 +226,19 @@
             const remember = document.getElementById('remember-me').checked;
             
             showLoading("กำลังตรวจสอบข้อมูล...");
+            
             try {
                 const res = await apiCall('login', { username: user, password: pass }, false); 
+                
                 if (res.status === 'success') {
                     showLoading("กำลังเข้าสู่ระบบ...");
                     currentUser = res.user;
                     if (remember) localStorage.setItem('soilAppUser', JSON.stringify(currentUser));
                     document.getElementById('login-screen').classList.add('hidden');
+                    
                     renderSidebar();
                     updateNavUser();
+                    
                     showLoading("กำลังดาวน์โหลดข้อมูลล่าสุด...");
                     await refreshData();
                     router('dashboard');
@@ -212,34 +248,58 @@
                     errorDiv.querySelector('span').textContent = res.message || "เกิดข้อผิดพลาดในการเข้าสู่ระบบ";
                     errorDiv.classList.remove('hidden');
                 }
-            } catch (err) { hideLoading(); alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message); }
+            } catch (err) {
+                hideLoading();
+                alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message);
+            }
         }
 
         async function handleRegister(e) {
             e.preventDefault();
             const pass = document.getElementById('reg-pass').value;
             const passConfirm = document.getElementById('reg-pass-confirm').value;
-            if (pass !== passConfirm) { alert("รหัสผ่านไม่ตรงกัน กรุณาตรวจสอบอีกครั้ง"); return; }
-            const payload = { username: document.getElementById('reg-user').value, password: pass, name: document.getElementById('reg-name').value, group: document.getElementById('reg-group').value };
+
+            if (pass !== passConfirm) {
+                alert("รหัสผ่านไม่ตรงกัน กรุณาตรวจสอบอีกครั้ง");
+                return;
+            }
+
+            const payload = { 
+                username: document.getElementById('reg-user').value, 
+                password: pass, 
+                name: document.getElementById('reg-name').value, 
+                group: document.getElementById('reg-group').value 
+            };
+            
             showLoading("กำลังลงทะเบียน...");
             const res = await apiCall('register', payload, false); 
             hideLoading();
-            if (res.status === 'success') { alert('ลงทะเบียนสำเร็จ! โปรดแจ้ง Admin เพื่อทำการอนุมัติสิทธิ์ก่อนเริ่มใช้งาน'); showLoginTab('login'); } else { alert(res.message); }
+
+            if (res.status === 'success') { 
+                alert('ลงทะเบียนสำเร็จ! โปรดแจ้ง Admin เพื่อทำการอนุมัติสิทธิ์ก่อนเริ่มใช้งาน'); 
+                showLoginTab('login'); 
+            } else { 
+                alert(res.message); 
+            }
         }
 
         function logout() { localStorage.removeItem('soilAppUser'); location.reload(); }
+        
         function showLoginTab(tab) {
             document.getElementById('login-error-msg').classList.add('hidden');
             if (tab === 'login') { document.getElementById('login-form').classList.remove('hidden'); document.getElementById('register-form').classList.add('hidden'); document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; } 
             else { document.getElementById('login-form').classList.add('hidden'); document.getElementById('register-form').classList.remove('hidden'); document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; }
         }
-        function updateNavUser() { if(currentUser) document.getElementById('nav-username').textContent = currentUser.name; }
-        function getUserInfo(username) { if (username === 'admin') return { name: 'Admin System', group: 'IT Support' }; const u = userList.find(user => user.username === username); return u ? { name: u.name, group: u.group } : { name: username, group: '-' }; }
+        
+        function updateNavUser() { 
+            if(currentUser) document.getElementById('nav-username').textContent = currentUser.name; 
+        }
 
         function renderSidebar() {
             const nav = document.getElementById('nav-container');
             if (!currentUser) return;
             const isAdmin = currentUser.username === 'admin';
+            const canReport = isAdmin || currentUser.canReport === true;
             
             let html = `
                 <button id="nav-dashboard" onclick="router('dashboard')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors">
@@ -279,6 +339,14 @@
             nav.innerHTML = html;
         }
 
+        // --- HELPER: Get User Info ---
+        function getUserInfo(username) {
+            if (username === 'admin') return { name: 'Admin System', group: 'IT Support' };
+            const u = userList.find(user => user.username === username);
+            return u ? { name: u.name, group: u.group } : { name: username, group: '-' };
+        }
+
+        // --- VIEWS ---
         async function router(viewName) {
             currentView = viewName; 
             const container = document.getElementById('content-area');
@@ -293,6 +361,7 @@
                 const totalQty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
                 const borrowed = items.filter(i => i.status === 'Borrowed').length;
                 const available = totalReceipts - borrowed;
+
                 html = `
                     <h2 class="text-2xl font-bold mb-6 text-slate-800">แดชบอร์ดภาพรวม</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -312,8 +381,8 @@
                 if(res.status === 'success') userList = res.users;
                 html = `
                     <h2 class="text-2xl font-bold mb-6 text-purple-700">จัดการผู้ใช้งาน (Admin)</h2>
-                    <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-purple-50 text-purple-800 font-semibold border-b">
-                        <tr><th class="p-4">Username</th><th class="p-4">ชื่อ</th><th class="p-4">กลุ่ม</th><th class="p-4">สถานะ</th><th class="p-4 text-center">สิทธิ์รายงานผล</th><th class="p-4 text-center">สิทธิ์จัดการข้อมูล</th><th class="p-4 text-center">สิทธิ์จำหน่าย</th><th class="p-4 text-center">จัดการ</th></tr></thead>
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm"><thead class="bg-purple-50 text-purple-800 font-semibold border-b"><tr><th class="p-4">Username</th><th class="p-4">ชื่อ</th><th class="p-4">กลุ่ม</th><th class="p-4">สถานะ</th><th class="p-4 text-center">สิทธิ์รายงานผล</th><th class="p-4 text-center">สิทธิ์จัดการข้อมูล</th><th class="p-4 text-center">สิทธิ์จำหน่าย</th><th class="p-4 text-center">จัดการ</th></tr></thead>
                         <tbody class="divide-y divide-gray-100">${userList.map(u => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${u.username}</td><td class="p-4">${u.name}</td><td class="p-4 text-gray-500">${u.group}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-bold ${u.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${u.status === 'Approved' ? 'อนุมัติแล้ว' : 'รออนุมัติ'}</span></td>
                         <td class="p-4 text-center"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" onchange="toggleUserPermission('${u.username}', 'report', this.checked)" class="sr-only peer" ${u.canReport ? 'checked' : ''}><div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div></label></td>
                         <td class="p-4 text-center"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" onchange="toggleUserPermission('${u.username}', 'manage', this.checked)" class="sr-only peer" ${u.canManage ? 'checked' : ''}><div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div></label></td>
