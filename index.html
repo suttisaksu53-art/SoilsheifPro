@@ -83,12 +83,17 @@
 
         <div id="content-area" class="flex-1 overflow-y-auto p-4 md:p-8 relative"></div>
         <div id="status-badge" class="status-badge status-demo hidden"><i class="fa-solid fa-circle-info"></i><span id="status-text">โหมดจำลอง</span></div>
-        <div id="loading-overlay" class="absolute inset-0 bg-white/80 z-50 flex items-center justify-center hidden">
-            <div class="text-center"><i class="fa-solid fa-spinner fa-spin text-4xl text-emerald-600 mb-2"></i><p class="text-emerald-800 font-semibold" id="loading-text">กำลังโหลดข้อมูล...</p></div>
-        </div>
     </main>
 
     <div id="modal-container"></div>
+
+    <!-- Loading Overlay (Moved to root and z-index increased to cover login screen) -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white/90 z-[200] flex items-center justify-center hidden">
+        <div class="text-center">
+            <i class="fa-solid fa-spinner fa-spin text-5xl text-emerald-600 mb-4"></i>
+            <p class="text-emerald-800 font-bold text-lg animate-pulse" id="loading-text">กำลังโหลดข้อมูล...</p>
+        </div>
+    </div>
 
     <!-- Login Screen -->
     <div id="login-screen" class="fixed inset-0 bg-slate-900 z-[100] flex items-center justify-center p-4">
@@ -172,7 +177,7 @@
             const pass = document.getElementById('login-pass').value;
             const remember = document.getElementById('remember-me').checked;
             
-            // แสดงสถานะการโหลด
+            // แสดงสถานะการโหลด (ตอนนี้จะมองเห็นแล้วเพราะอยู่บนสุด)
             showLoading("กำลังตรวจสอบข้อมูล...");
             
             try {
