@@ -9,10 +9,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- jsPDF UMD -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <!-- SheetJS for Excel Import/Export -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
     <style>
@@ -23,45 +21,23 @@
             background-color: #f3f4f6;
         }
 
-        .btn-primary {
-            @apply bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200;
-        }
-        
-        .btn-secondary {
-            @apply bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-colors duration-200;
-        }
-
-        .btn-success {
-            @apply bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200;
-        }
-        
-        .btn-danger {
-            @apply bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200;
-        }
+        .btn-primary { @apply bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200; }
+        .btn-secondary { @apply bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-colors duration-200; }
+        .btn-success { @apply bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200; }
+        .btn-danger { @apply bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200; }
 
         .status-badge {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 8px 16px;
-            border-radius: 50px;
-            font-size: 12px;
-            font-weight: bold;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            z-index: 40;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            position: fixed; bottom: 20px; right: 20px; padding: 8px 16px; border-radius: 50px; font-size: 12px; font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 40; display: flex; align-items: center; gap: 8px;
         }
         .status-online { background-color: #10b981; color: white; }
         .status-demo { background-color: #f59e0b; color: white; }
 
-        /* Nav Item Active State */
-        .nav-item.active {
-            background-color: #059669; /* emerald-600 */
-            color: white;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
+        .nav-item.active { background-color: #059669; color: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        
+        /* Toggle Switch */
+        .toggle-checkbox:checked { right: 0; border-color: #10b981; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
     </style>
 </head>
 <body class="text-gray-800 h-screen flex overflow-hidden">
@@ -78,9 +54,7 @@
             </div>
         </div>
 
-        <nav class="flex-1 p-4 space-y-2 overflow-y-auto" id="nav-container">
-            <!-- Nav items will be injected -->
-        </nav>
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto" id="nav-container"></nav>
 
         <div class="p-4 border-t border-slate-700">
             <div class="flex items-center space-x-3 mb-4 cursor-pointer hover:bg-slate-700 p-2 rounded" onclick="router('profile')">
@@ -108,21 +82,20 @@
         </header>
 
         <div id="content-area" class="flex-1 overflow-y-auto p-4 md:p-8 relative"></div>
+        <div id="status-badge" class="status-badge status-demo hidden"><i class="fa-solid fa-circle-info"></i><span id="status-text">โหมดจำลอง</span></div>
         
-        <div id="status-badge" class="status-badge status-demo hidden">
-            <i class="fa-solid fa-circle-info"></i><span id="status-text">โหมดจำลอง</span>
-        </div>
-        
-        <div id="loading-overlay" class="absolute inset-0 bg-white/80 z-50 flex items-center justify-center hidden">
+        <!-- Loading Overlay with Dynamic Text -->
+        <div id="loading-overlay" class="absolute inset-0 bg-white/90 z-[60] flex items-center justify-center hidden">
             <div class="text-center">
-                <i class="fa-solid fa-spinner fa-spin text-4xl text-emerald-600 mb-2"></i>
-                <p class="text-emerald-800 font-semibold" id="loading-text">กำลังโหลดข้อมูล...</p>
+                <i class="fa-solid fa-spinner fa-spin text-5xl text-emerald-600 mb-4"></i>
+                <p class="text-emerald-800 font-bold text-lg animate-pulse" id="loading-text">กำลังโหลดข้อมูล...</p>
             </div>
         </div>
     </main>
 
     <div id="modal-container"></div>
 
+    <!-- Login Screen -->
     <div id="login-screen" class="fixed inset-0 bg-slate-900 z-[100] flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
             <div class="bg-emerald-600 p-6 text-white text-center">
@@ -154,32 +127,24 @@
     </div>
 
     <script>
-        const MOCK_DELAY = 600;
+        const MOCK_DELAY = 250;
         const HARDCODED_API_URL = "https://script.google.com/macros/s/AKfycbzb3O1kWnyJtD7jPor_rfnJOrD9df1Jzjb66QtBXeIzgyKZHXRq8FramTk6RGptFCRKLQ/exec";
         
         let currentUser = null;
         let items = [];
         let events = [];
+        let userList = []; 
         let isRealMode = true; 
         let API_URL = HARDCODED_API_URL; 
         let statusChartInstance = null; 
 
-        // Authorized users for Report Menu (Admin determines)
-        const REPORT_ACCESS_USERS = ['admin'];
-
+        // Mock Data
         const mockItems = [
             { id: '1', receiptNo: 'S-66001', qty: 5, dateReceived: '2023-10-01', layer: 'A1', params: 'pH, EC, OM', status: 'Available', holder: '-', disposalPref: 'รับคืน', dateReported: '', disposalStatus: '' },
-            { id: '2', receiptNo: 'S-66002', qty: 2, dateReceived: '2023-10-05', layer: 'B2', params: 'N, P, K', status: 'Borrowed', holder: 'admin', disposalPref: 'ทิ้ง', dateReported: '2023-11-01', disposalStatus: 'Completed' },
-            { id: '3', receiptNo: 'S-66003', qty: 10, dateReceived: '2023-10-12', layer: 'A3', params: 'Heavy Metals', status: 'Available', holder: '-', disposalPref: 'ทิ้ง', dateReported: '2023-11-05', disposalStatus: '' },
+            { id: '2', receiptNo: 'S-66002', qty: 2, dateReceived: '2023-10-05', layer: 'B2', params: 'N, P, K', status: 'Borrowed', holder: 'admin', disposalPref: 'ทิ้ง', dateReported: '2023-11-01', disposalStatus: 'Completed' }
         ];
-        
-        const mockEvents = [
-            { id: 'e1', itemId: '2', itemName: 'S-66002', type: 'Borrow', user: 'admin', date: '2023-10-20T10:00:00', note: '-' }
-        ];
-
-        const mockUsers = [
-            { username: 'admin', password: 'admin123', name: 'Admin System', group: 'IT Support' }
-        ];
+        const mockEvents = [];
+        const mockUsers = [{ username: 'admin', password: 'admin123', name: 'Admin System', group: 'IT Support', status: 'Approved', canReport: true }];
 
         function init() {
             const storedUser = localStorage.getItem('soilAppUser');
@@ -188,9 +153,13 @@
             updateStatusBadge();
 
             if (storedUser) {
-                currentUser = JSON.parse(storedUser);
-                document.getElementById('login-screen').classList.add('hidden');
-                updateNavAndRedirect();
+                try {
+                    currentUser = JSON.parse(storedUser);
+                    document.getElementById('login-screen').classList.add('hidden');
+                    updateNavAndRedirect();
+                } catch(e) {
+                    localStorage.removeItem('soilAppUser'); // Clear corrupted data
+                }
             }
         }
 
@@ -200,10 +169,82 @@
             refreshData().then(() => router('dashboard'));
         }
 
+        // --- AUTH FUNCTIONS ---
+        async function handleLogin(e) {
+            e.preventDefault();
+            document.getElementById('login-error-msg').classList.add('hidden');
+            const user = document.getElementById('login-user').value;
+            const pass = document.getElementById('login-pass').value;
+            const remember = document.getElementById('remember-me').checked;
+            
+            // Set specific loading text for login
+            showLoading("กำลังตรวจสอบข้อมูล...");
+            
+            try {
+                // Call API but keep overlay ON (don't hide inside apiCall yet)
+                const res = await apiCall('login', { username: user, password: pass }, false); 
+                
+                if (res.status === 'success') {
+                    showLoading("กำลังเข้าสู่ระบบ...");
+                    currentUser = res.user;
+                    if (remember) localStorage.setItem('soilAppUser', JSON.stringify(currentUser));
+                    document.getElementById('login-screen').classList.add('hidden');
+                    
+                    // Render sidebar immediately
+                    renderSidebar();
+                    updateNavUser();
+                    
+                    // Fetch data while showing loading
+                    showLoading("กำลังดาวน์โหลดข้อมูลล่าสุด...");
+                    await refreshData();
+                    router('dashboard');
+                } else {
+                    hideLoading();
+                    const errorDiv = document.getElementById('login-error-msg');
+                    errorDiv.querySelector('span').textContent = res.message || "เกิดข้อผิดพลาดในการเข้าสู่ระบบ";
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                hideLoading();
+                alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message);
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const payload = { username: document.getElementById('reg-user').value, password: document.getElementById('reg-pass').value, name: document.getElementById('reg-name').value, group: document.getElementById('reg-group').value };
+            
+            showLoading("กำลังลงทะเบียน...");
+            const res = await apiCall('register', payload);
+            
+            if (res.status === 'success') { 
+                alert('ขั้นตอนการสมัคใช้งานเรียบร้อยแล้ว โปรดแจ้ง admin เพื่อให้ยืนยันตัวตน'); 
+                showLoginTab('login'); 
+            } else { 
+                alert(res.message); 
+            }
+        }
+
+        function logout() { 
+            localStorage.removeItem('soilAppUser'); 
+            location.reload(); 
+        }
+        
+        function showLoginTab(tab) {
+            document.getElementById('login-error-msg').classList.add('hidden');
+            if (tab === 'login') { document.getElementById('login-form').classList.remove('hidden'); document.getElementById('register-form').classList.add('hidden'); document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; } 
+            else { document.getElementById('login-form').classList.add('hidden'); document.getElementById('register-form').classList.remove('hidden'); document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; }
+        }
+        
+        function updateNavUser() { 
+            if(currentUser) document.getElementById('nav-username').textContent = currentUser.name; 
+        }
+
         function renderSidebar() {
             const nav = document.getElementById('nav-container');
-            const isAdmin = currentUser && currentUser.username === 'admin';
-            const canReport = isAdmin || REPORT_ACCESS_USERS.includes(currentUser.username);
+            if (!currentUser) return;
+            const isAdmin = currentUser.username === 'admin';
+            const canReport = isAdmin || currentUser.canReport === true;
             
             let html = `
                 <button id="nav-dashboard" onclick="router('dashboard')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors">
@@ -224,6 +265,9 @@
 
             if (isAdmin) {
                 html += `
+                <button id="nav-users" onclick="router('users')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-purple-300">
+                    <i class="fa-solid fa-users-gear w-6"></i> <span>จัดการผู้ใช้งาน</span>
+                </button>
                 <button id="nav-dispose" onclick="router('dispose')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-orange-300">
                     <i class="fa-solid fa-trash-can-arrow-up w-6"></i> <span>จำหน่ายตัวอย่าง</span>
                 </button>
@@ -244,134 +288,8 @@
             nav.innerHTML = html;
         }
 
-        function updateStatusBadge() {
-            const badge = document.getElementById('status-badge');
-            badge.classList.remove('hidden');
-            if (isRealMode) {
-                badge.className = 'status-badge status-online';
-                badge.innerHTML = '<i class="fa-solid fa-wifi"></i> <span>ออนไลน์ (Google Sheet)</span>';
-            } else {
-                badge.className = 'status-badge status-demo';
-                badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> <span>โหมดจำลอง (ไม่บันทึก)</span>';
-            }
-        }
-
-        function formatDateTh(dateString, includeTime = true) {
-            if (!dateString) return '-';
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return dateString;
-            const options = { year: 'numeric', month: 'short', day: 'numeric' };
-            if (includeTime) { options.hour = '2-digit'; options.minute = '2-digit'; options.hour12 = false; }
-            return date.toLocaleString('th-TH', options);
-        }
-
-        function formatDateForPDF(dateString) {
-            if (!dateString) return '-';
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return dateString;
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            return `${day}/${month}/${year} ${hours}:${minutes}`;
-        }
-
-        function calculateDaysRemaining(dateReported) {
-            if (!dateReported) return -1;
-            const reported = new Date(dateReported);
-            const now = new Date();
-            const diffTime = Math.abs(now - reported);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-            return diffDays;
-        }
-
-        async function apiCall(action, payload = {}) {
-            document.getElementById('loading-overlay').classList.remove('hidden');
-            if (!isRealMode) {
-                return new Promise((resolve) => {
-                    setTimeout(() => {
-                        document.getElementById('loading-overlay').classList.add('hidden');
-                        let result = { status: 'success' };
-                        if (action === 'login') {
-                            const user = mockUsers.find(u => u.username === payload.username && u.password === payload.password);
-                            if (user) result.user = user; else result = { status: 'error', message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' };
-                        } else if (action === 'getItems') { result.items = [...mockItems];
-                        } else if (action === 'getHistory') { result.events = [...mockEvents];
-                        } else if (action === 'reportItem') {
-                             const item = mockItems.find(i => i.id === payload.id);
-                             if(item) item.dateReported = payload.date;
-                             result.message = "รายงานผลสำเร็จ";
-                        } else if (action === 'disposeItem') {
-                             const item = mockItems.find(i => i.id === payload.id);
-                             if(item) item.disposalStatus = 'Completed';
-                             result.message = "ดำเนินการสำเร็จ";
-                        }
-                        resolve(result);
-                    }, MOCK_DELAY);
-                });
-            } else {
-                try {
-                    const response = await fetch(API_URL.trim(), {
-                        method: 'POST',
-                        redirect: 'follow',
-                        headers: { "Content-Type": "text/plain;charset=utf-8" },
-                        body: JSON.stringify({ action, ...payload })
-                    });
-                    const data = await response.json();
-                    document.getElementById('loading-overlay').classList.add('hidden');
-                    return data;
-                } catch (e) {
-                    document.getElementById('loading-overlay').classList.add('hidden');
-                    console.error(e);
-                    alert("เชื่อมต่อไม่สำเร็จ!");
-                    return { status: 'error', message: e.toString() };
-                }
-            }
-        }
-
-        async function refreshData() {
-            const itemRes = await apiCall('getItems');
-            if(itemRes.status === 'success') items = itemRes.items;
-            const eventRes = await apiCall('getHistory');
-            if(eventRes.status === 'success') events = eventRes.events;
-        }
-
-        async function handleLogin(e) {
-            e.preventDefault();
-            document.getElementById('login-error-msg').classList.add('hidden');
-            const user = document.getElementById('login-user').value;
-            const pass = document.getElementById('login-pass').value;
-            const remember = document.getElementById('remember-me').checked;
-            const res = await apiCall('login', { username: user, password: pass });
-            if (res.status === 'success') {
-                currentUser = res.user;
-                if (remember) localStorage.setItem('soilAppUser', JSON.stringify(currentUser));
-                document.getElementById('login-screen').classList.add('hidden');
-                updateNavAndRedirect();
-            } else {
-                const errorDiv = document.getElementById('login-error-msg');
-                errorDiv.querySelector('span').textContent = res.message || "เกิดข้อผิดพลาดในการเข้าสู่ระบบ";
-                errorDiv.classList.remove('hidden');
-            }
-        }
-
-        async function handleRegister(e) {
-            e.preventDefault();
-            const payload = { username: document.getElementById('reg-user').value, password: document.getElementById('reg-pass').value, name: document.getElementById('reg-name').value, group: document.getElementById('reg-group').value };
-            const res = await apiCall('register', payload);
-            if (res.status === 'success') { alert('ลงทะเบียนสำเร็จ'); showLoginTab('login'); } else { alert(res.message); }
-        }
-
-        function logout() { localStorage.removeItem('soilAppUser'); location.reload(); }
-        function showLoginTab(tab) {
-            document.getElementById('login-error-msg').classList.add('hidden');
-            if (tab === 'login') { document.getElementById('login-form').classList.remove('hidden'); document.getElementById('register-form').classList.add('hidden'); document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; } 
-            else { document.getElementById('login-form').classList.add('hidden'); document.getElementById('register-form').classList.remove('hidden'); document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; }
-        }
-        function updateNavUser() { document.getElementById('nav-username').textContent = currentUser.name; }
-
-        function router(viewName) {
+        // --- VIEWS ---
+        async function router(viewName) {
             const container = document.getElementById('content-area');
             document.querySelectorAll('.nav-item').forEach(el => { el.classList.remove('active'); el.classList.remove('bg-emerald-600'); });
             const activeNav = document.getElementById(`nav-${viewName}`);
@@ -395,338 +313,252 @@
                 container.innerHTML = html;
                 setTimeout(() => { const ctx = document.getElementById('statusChart').getContext('2d'); if (statusChartInstance) statusChartInstance.destroy(); statusChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: ['พร้อมเบิก', 'ถูกเบิกไป'], datasets: [{ data: [available, borrowed], backgroundColor: ['#10b981', '#f97316'], borderWidth: 0 }] }, options: { responsive: true, cutout: '70%' } }); }, 100);
 
-            } else if (viewName === 'status') {
+            } else if (viewName === 'users') {
+                if (currentUser.username !== 'admin') { container.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</div>`; return; }
+                const res = await apiCall('getUsers');
+                if(res.status === 'success') userList = res.users;
                 html = `
-                    <h2 class="text-2xl font-bold mb-6 text-slate-800">สถานะตัวอย่างดินทั้งหมด</h2>
-                    <div class="bg-white p-4 rounded-xl shadow-sm mb-4"><input type="text" id="status-search" onkeyup="filterTable('status-search', 'status-table')" placeholder="ค้นหา..." class="w-full p-2 border rounded-lg"></div>
+                    <h2 class="text-2xl font-bold mb-6 text-purple-700">จัดการผู้ใช้งาน (Admin)</h2>
                     <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto">
-                        <table id="status-table" class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">สถานะ</th><th class="p-4">ผู้ที่กำลังเบิกไป</th><th class="p-4">พารามิเตอร์</th><th class="p-4">รายงานผลเมื่อ</th></tr></thead>
-                        <tbody class="divide-y divide-gray-100">${items.map(item => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${item.layer}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-semibold ${item.status === 'Available' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${item.status === 'Available' ? 'ว่าง' : 'ถูกเบิก'}</span></td><td class="p-4 ${item.status === 'Borrowed' ? 'text-red-600 font-bold' : 'text-gray-400'}">${item.holder}</td><td class="p-4 text-xs text-gray-500">${item.params}</td><td class="p-4 text-xs text-blue-500">${formatDateTh(item.dateReported, false)}</td></tr>`).join('')}</tbody></table>
+                        <table class="w-full text-left text-sm"><thead class="bg-purple-50 text-purple-800 font-semibold border-b"><tr><th class="p-4">Username</th><th class="p-4">ชื่อ</th><th class="p-4">กลุ่ม</th><th class="p-4">สถานะ</th><th class="p-4 text-center">สิทธิ์รายงานผล</th><th class="p-4 text-center">จัดการ</th></tr></thead>
+                        <tbody class="divide-y divide-gray-100">${userList.map(u => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${u.username}</td><td class="p-4">${u.name}</td><td class="p-4 text-gray-500">${u.group}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-bold ${u.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${u.status === 'Approved' ? 'อนุมัติแล้ว' : 'รออนุมัติ'}</span></td><td class="p-4 text-center"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" onchange="toggleUserReport('${u.username}', this.checked)" class="sr-only peer" ${u.canReport ? 'checked' : ''}><div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label></td><td class="p-4 text-center space-x-2">${u.status === 'Pending' ? `<button onclick="approveUser('${u.username}')" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded text-xs font-bold hover:bg-emerald-200">อนุมัติ</button>` : ''}<button onclick="deleteUser('${u.username}')" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}</tbody></table>
                     </div></div>
                 `;
                 container.innerHTML = html;
 
             } else if (viewName === 'report') {
-                // Report Menu: Show items not yet reported
                 const pendingReport = items.filter(i => !i.dateReported);
                 html = `
                     <h2 class="text-2xl font-bold mb-6 text-blue-700">รายงานผลการวิเคราะห์</h2>
                     <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto">
                         <table class="w-full text-left text-sm"><thead class="bg-blue-50 text-blue-800 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">วันที่รับ</th><th class="p-4">พารามิเตอร์</th><th class="p-4 text-center">จัดการ</th></tr></thead>
-                        <tbody class="divide-y divide-gray-100">${pendingReport.length === 0 ? '<tr><td colspan="4" class="p-6 text-center text-gray-400">ไม่มีรายการรอรายงานผล</td></tr>' : pendingReport.map(item => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${formatDateTh(item.dateReceived, false)}</td><td class="p-4 text-xs">${item.params}</td><td class="p-4 text-center"><button onclick="handleReportItem('${item.id}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow-sm text-sm transition-colors">ยืนยันรายงานผล</button></td></tr>`).join('')}</tbody></table>
+                        <tbody class="divide-y divide-gray-100">${pendingReport.length === 0 ? '<tr><td colspan="4" class="p-6 text-center text-gray-400">ไม่มีรายการรอรายงานผล</td></tr>' : pendingReport.map(item => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${formatDateTh(item.dateReceived, false)}</td><td class="p-4 text-xs">${item.params}</td><td class="p-4 text-center"><button onclick="openReportDateModal('${item.id}', '${item.receiptNo}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow-sm text-sm transition-colors">ยืนยันรายงานผล</button></td></tr>`).join('')}</tbody></table>
                     </div></div>
                 `;
                 container.innerHTML = html;
 
             } else if (viewName === 'dispose') {
-                // Dispose Menu: Reported items > 60 days
-                const now = new Date();
-                const overdueItems = items.filter(i => {
-                    if (!i.dateReported || i.disposalStatus === 'Completed') return false;
-                    const days = calculateDaysRemaining(i.dateReported);
-                    return days >= 60;
-                });
-
+                const overdueItems = items.filter(i => { if (!i.dateReported || i.disposalStatus === 'Completed') return false; return calculateDaysRemaining(i.dateReported) >= 60; });
                 html = `
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-bold text-orange-700">จำหน่ายตัวอย่าง (ครบกำหนด 60 วัน)</h2>
-                        <div class="flex space-x-2">
-                             <button onclick="exportDisposeXLSX()" class="btn-success text-sm"><i class="fa-solid fa-file-excel mr-2"></i>Export Excel</button>
-                             <button onclick="exportDisposePDF()" class="btn-secondary text-sm"><i class="fa-solid fa-file-pdf mr-2"></i>Export PDF</button>
-                        </div>
-                    </div>
+                    <div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-orange-700">จำหน่ายตัวอย่าง (ครบกำหนด 60 วัน)</h2><div class="flex space-x-2"><button onclick="exportDisposeXLSX()" class="btn-success text-sm"><i class="fa-solid fa-file-excel mr-2"></i>Export Excel</button><button onclick="exportDisposePDF()" class="btn-secondary text-sm"><i class="fa-solid fa-file-pdf mr-2"></i>Export PDF</button></div></div>
                     <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm"><thead class="bg-orange-50 text-orange-800 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">วันที่รายงานผล</th><th class="p-4">เกินกำหนด (วัน)</th><th class="p-4">ความต้องการ (stimeout)</th><th class="p-4 text-center">จัดการ</th></tr></thead>
-                        <tbody class="divide-y divide-gray-100">${overdueItems.length === 0 ? '<tr><td colspan="5" class="p-6 text-center text-gray-400">ไม่มีรายการครบกำหนดจำหน่าย</td></tr>' : overdueItems.map(item => {
-                            const days = calculateDaysRemaining(item.dateReported);
-                            return `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${formatDateTh(item.dateReported, false)}</td><td class="p-4 text-red-600 font-bold">${days} วัน</td><td class="p-4"><span class="px-2 py-1 rounded text-xs font-bold ${item.disposalPref === 'รับคืน' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-800'}">${item.disposalPref}</span></td><td class="p-4 text-center"><button onclick="handleDisposeItem('${item.id}', '${item.disposalPref}')" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded shadow-sm text-sm transition-colors">ดำเนินการ (${item.disposalPref === 'รับคืน' ? 'คืนเจ้าของ' : 'ทิ้ง'})</button></td></tr>`
-                        }).join('')}</tbody></table>
+                        <table class="w-full text-left text-sm"><thead class="bg-orange-50 text-orange-800 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">วันที่รายงานผล</th><th class="p-4">เกินกำหนด (วัน)</th><th class="p-4">ความต้องการ</th><th class="p-4 text-center">จัดการ</th></tr></thead>
+                        <tbody class="divide-y divide-gray-100">${overdueItems.length === 0 ? '<tr><td colspan="5" class="p-6 text-center text-gray-400">ไม่มีรายการครบกำหนดจำหน่าย</td></tr>' : overdueItems.map(item => { const days = calculateDaysRemaining(item.dateReported); return `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${formatDateTh(item.dateReported, false)}</td><td class="p-4 text-red-600 font-bold">${days} วัน</td><td class="p-4"><span class="px-2 py-1 rounded text-xs font-bold ${item.disposalPref === 'รับคืน' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-800'}">${item.disposalPref}</span></td><td class="p-4 text-center"><button onclick="handleDisposeItem('${item.id}', '${item.disposalPref}')" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded shadow-sm text-sm transition-colors">ดำเนินการ (${item.disposalPref === 'รับคืน' ? 'คืนเจ้าของ' : 'ทิ้ง'})</button></td></tr>` }).join('')}</tbody></table>
                     </div></div>
                 `;
                 container.innerHTML = html;
 
+            } else if (viewName === 'status') {
+                html = `
+                    <h2 class="text-2xl font-bold mb-6 text-slate-800">สถานะตัวอย่างดินทั้งหมด</h2>
+                    <div class="bg-white p-4 rounded-xl shadow-sm mb-4"><input type="text" id="status-search" onkeyup="filterTable('status-search', 'status-table')" placeholder="ค้นหา..." class="w-full p-2 border rounded-lg"></div>
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table id="status-table" class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">สถานะ</th><th class="p-4">ผู้ที่กำลังเบิกไป</th><th class="p-4">พารามิเตอร์</th><th class="p-4">รายงานผลเมื่อ</th></tr></thead><tbody class="divide-y divide-gray-100">${items.map(item => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${item.layer}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-semibold ${item.status === 'Available' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${item.status === 'Available' ? 'ว่าง' : 'ถูกเบิก'}</span></td><td class="p-4 ${item.status === 'Borrowed' ? 'text-red-600 font-bold' : 'text-gray-400'}">${item.holder}</td><td class="p-4 text-xs text-gray-500">${item.params}</td><td class="p-4 text-xs text-blue-500">${formatDateTh(item.dateReported, false)}</td></tr>`).join('')}</tbody></table></div></div>
+                `;
+                container.innerHTML = html;
             } else if (viewName === 'items') {
-                if (currentUser.username !== 'admin') { container.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (สำหรับ Admin เท่านั้น)</div>`; return; }
+                if (currentUser.username !== 'admin') { container.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</div>`; return; }
                 html = `
                     <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                         <h2 class="text-2xl font-bold text-slate-800">จัดการตัวอย่างดิน (Admin)</h2>
-                        <div class="flex space-x-2"><button onclick="downloadTemplate()" class="btn-secondary text-sm"><i class="fa-solid fa-file-excel mr-2"></i>โหลดฟอร์ม Import</button><div class="relative overflow-hidden"><button class="btn-secondary text-sm"><i class="fa-solid fa-upload mr-2"></i>Import Excel</button><input type="file" id="import-file" accept=".xlsx, .xls" onchange="handleImport(this)" class="absolute inset-0 opacity-0 cursor-pointer"></div><button onclick="openItemModal()" class="btn-primary text-sm"><i class="fa-solid fa-plus mr-2"></i>เพิ่มเดี่ยว</button></div>
+                        <div class="flex flex-wrap items-center gap-3 justify-end">
+                            <div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+                                <button onclick="exportItemsXLSX()" class="px-3 py-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Export Excel"><i class="fa-solid fa-file-excel text-lg"></i></button>
+                                <div class="w-px bg-gray-200 my-1"></div>
+                                <button onclick="exportItemsPDF()" class="px-3 py-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Export PDF"><i class="fa-solid fa-file-pdf text-lg"></i></button>
+                            </div>
+                            <div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+                                <button onclick="downloadTemplate()" class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="ดาวน์โหลดฟอร์ม"><i class="fa-solid fa-file-arrow-down"></i> <span class="hidden sm:inline">โหลดฟอร์ม</span></button>
+                                <div class="w-px bg-gray-200 my-1"></div>
+                                <div class="relative"><button class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"><i class="fa-solid fa-file-import"></i> <span class="hidden sm:inline">นำเข้า</span></button><input type="file" id="import-file" accept=".xlsx, .xls" onchange="handleImport(this)" class="absolute inset-0 opacity-0 cursor-pointer" title="อัปโหลดไฟล์ Excel"></div>
+                            </div>
+                            <button onclick="openItemModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-plus"></i> <span>เพิ่มข้อมูล</span></button>
+                            <button onclick="deleteSelected()" id="btn-delete-selected" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md transition-all hidden flex items-center gap-2 text-sm font-medium animate-pulse"><i class="fa-solid fa-trash-can"></i> <span id="selected-count">0</span></button>
+                        </div>
                     </div>
-                    <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รับ</th><th class="p-4">stimeout</th><th class="p-4">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100">${items.map(item => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold text-emerald-700">${item.receiptNo}</td><td class="p-4">${item.qty}</td><td class="p-4">${item.layer}</td><td class="p-4">${formatDateTh(item.dateReceived, false)}</td><td class="p-4 text-xs">${item.disposalPref}</td><td class="p-4 space-x-2"><button onclick='openItemModal(${JSON.stringify(item)})' class="text-blue-500 hover:text-blue-700"><i class="fa-solid fa-edit"></i></button><button onclick="deleteItem('${item.id}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div></div>
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4 w-10"><input type="checkbox" onchange="toggleAllItems(this)"></th><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รับ</th><th class="p-4">stimeout</th><th class="p-4">จัดการ</th></tr></thead>
+                        <tbody class="divide-y divide-gray-100">${items.map(item => `<tr class="hover:bg-gray-50"><td class="p-4"><input type="checkbox" class="item-checkbox" value="${item.id}" onchange="checkSelection()"></td><td class="p-4 font-bold text-emerald-700">${item.receiptNo}</td><td class="p-4">${item.qty}</td><td class="p-4">${item.layer}</td><td class="p-4">${formatDateTh(item.dateReceived, false)}</td><td class="p-4 text-xs">${item.disposalPref}</td><td class="p-4 space-x-2"><button onclick='openItemModal(${JSON.stringify(item)})' class="text-blue-500 hover:text-blue-700"><i class="fa-solid fa-edit"></i></button><button onclick="deleteItem('${item.id}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div></div>
                 `;
                 container.innerHTML = html;
-
             } else if (viewName === 'borrow') {
-                const availableItems = items.filter(i => i.status === 'Available');
-                const borrowedByMe = items.filter(i => i.status === 'Borrowed' && i.holder === currentUser.username);
-                html = `
-                    <h2 class="text-2xl font-bold mb-6 text-slate-800">ระบบเบิก-คืน ตัวอย่าง</h2>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div class="bg-white p-6 rounded-xl shadow-sm h-[600px] flex flex-col"><h3 class="text-lg font-bold mb-4 text-emerald-700 border-b pb-2">เบิกตัวอย่าง (ค้นหา)</h3><div class="mb-4"><input type="text" id="borrow-search-input" onkeyup="filterBorrowList()" placeholder="พิมพ์เลขรับ หรือ ชั้นเก็บ..." class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div><div class="flex-1 overflow-y-auto pr-2"><table class="w-full text-sm text-left"><thead class="sticky top-0 bg-white shadow-sm"><tr class="text-gray-500"><th class="pb-2">เลขรับ</th><th class="pb-2">ชั้น</th><th class="pb-2 text-right">เลือก</th></tr></thead><tbody id="borrow-list-body">${availableItems.length === 0 ? '<tr><td colspan="3" class="text-center py-4 text-gray-400">ไม่มีตัวอย่างให้เบิก</td></tr>' : availableItems.map(i => `<tr class="borrow-item-row border-b hover:bg-gray-50"><td class="py-3 font-bold text-gray-700">${i.receiptNo}</td><td class="py-3 text-gray-500">${i.layer}</td><td class="py-3 text-right"><button onclick="processTransaction('borrow', '${i.id}')" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1 rounded text-xs font-bold transition-colors">เบิก</button></td></tr>`).join('')}</tbody></table></div></div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm h-fit"><h3 class="text-lg font-bold mb-4 text-blue-700 border-b pb-2">คืนตัวอย่างของฉัน</h3><div class="overflow-y-auto max-h-[500px]"><table class="w-full text-sm text-left"><thead><tr class="text-gray-500"><th class="pb-2">เลขรับ</th><th class="pb-2 text-right">คืน</th></tr></thead><tbody>${borrowedByMe.length === 0 ? '<tr><td colspan="2" class="text-center py-4 text-gray-400">ไม่มีรายการค้างส่งคืน</td></tr>' : borrowedByMe.map(i => `<tr class="border-b hover:bg-gray-50"><td class="py-3 font-bold text-gray-700">${i.receiptNo}</td><td class="py-3 text-right"><button onclick="processTransaction('return', '${i.id}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded text-xs font-bold transition-colors">คืน</button></td></tr>`).join('')}</tbody></table></div></div>
-                    </div>
-                `;
-                container.innerHTML = html;
-
+                 const availableItems = items.filter(i => i.status === 'Available'); const borrowedByMe = items.filter(i => i.status === 'Borrowed' && i.holder === currentUser.username);
+                 html = `<h2 class="text-2xl font-bold mb-6 text-slate-800">ระบบเบิก-คืน ตัวอย่าง</h2><div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-xl shadow-sm h-[600px] flex flex-col"><h3 class="text-lg font-bold mb-4 text-emerald-700 border-b pb-2">เบิกตัวอย่าง (ค้นหา)</h3><div class="mb-4"><input type="text" id="borrow-search-input" onkeyup="filterBorrowList()" placeholder="พิมพ์เลขรับ หรือ ชั้นเก็บ..." class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div><div class="flex-1 overflow-y-auto pr-2"><table class="w-full text-sm text-left"><thead class="sticky top-0 bg-white shadow-sm"><tr class="text-gray-500"><th class="pb-2">เลขรับ</th><th class="pb-2">ชั้น</th><th class="pb-2 text-right">เลือก</th></tr></thead><tbody id="borrow-list-body">${availableItems.length === 0 ? '<tr><td colspan="3" class="text-center py-4 text-gray-400">ไม่มีตัวอย่างให้เบิก</td></tr>' : availableItems.map(i => `<tr class="borrow-item-row border-b hover:bg-gray-50"><td class="py-3 font-bold text-gray-700">${i.receiptNo}</td><td class="py-3 text-gray-500">${i.layer}</td><td class="py-3 text-right"><button onclick="processTransaction('borrow', '${i.id}')" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1 rounded text-xs font-bold transition-colors">เบิก</button></td></tr>`).join('')}</tbody></table></div></div><div class="bg-white p-6 rounded-xl shadow-sm h-fit"><h3 class="text-lg font-bold mb-4 text-blue-700 border-b pb-2">คืนตัวอย่างของฉัน</h3><div class="overflow-y-auto max-h-[500px]"><table class="w-full text-sm text-left"><thead><tr class="text-gray-500"><th class="pb-2">เลขรับ</th><th class="pb-2 text-right">คืน</th></tr></thead><tbody>${borrowedByMe.length === 0 ? '<tr><td colspan="2" class="text-center py-4 text-gray-400">ไม่มีรายการค้างส่งคืน</td></tr>' : borrowedByMe.map(i => `<tr class="border-b hover:bg-gray-50"><td class="py-3 font-bold text-gray-700">${i.receiptNo}</td><td class="py-3 text-right"><button onclick="processTransaction('return', '${i.id}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded text-xs font-bold transition-colors">คืน</button></td></tr>`).join('')}</tbody></table></div></div></div>`;
             } else if (viewName === 'history') {
-                html = `
-                    <div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-slate-800">ประวัติการใช้งาน</h2><div class="flex space-x-2"><button onclick="exportXLSX()" class="btn-success"><i class="fa-solid fa-file-excel mr-2"></i>Export Excel</button><button onclick="exportPDF()" class="btn-secondary"><i class="fa-solid fa-file-pdf mr-2"></i>Export PDF</button></div></div>
+                 html = `
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-slate-800">ประวัติการใช้งาน</h2>
+                        <div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+                            <button onclick="exportXLSX()" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Export Excel">
+                                <i class="fa-solid fa-file-excel text-xl"></i> <span class="font-medium">Excel</span>
+                            </button>
+                            <div class="w-px bg-gray-200 my-1 mx-1"></div>
+                            <button onclick="exportPDF()" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Export PDF">
+                                <i class="fa-solid fa-file-pdf text-xl"></i> <span class="font-medium">PDF</span>
+                            </button>
+                        </div>
+                    </div>
                     <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table id="history-table" class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4">เวลา</th><th class="p-4">รายการ</th><th class="p-4">เลขรับตัวอย่าง</th><th class="p-4">ผู้ดำเนินการ</th><th class="p-4">หมายเหตุ</th></tr></thead><tbody class="divide-y divide-gray-100">${events.map(e => `<tr class="hover:bg-gray-50"><td class="p-4 whitespace-nowrap">${formatDateTh(e.date)}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs ${e.type === 'Borrow' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}">${e.type === 'Borrow' ? 'เบิกออก' : 'นำคืน'}</span></td><td class="p-4 font-mono">${e.itemName}</td><td class="p-4">${e.user}</td><td class="p-4 text-gray-400">${e.note || '-'}</td></tr>`).join('')}</tbody></table></div></div>
                 `;
                 container.innerHTML = html;
             } else if (viewName === 'profile') {
-                html = `
-                     <h2 class="text-2xl font-bold mb-6 text-slate-800">ข้อมูลส่วนตัว</h2>
-                     <div class="bg-white max-w-lg p-6 rounded-xl shadow-sm">
-                        <form onsubmit="handleProfileUpdate(event)" class="space-y-4">
-                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Username (แก้ไขไม่ได้)</label><input type="text" value="${currentUser.username}" disabled class="w-full p-2 bg-gray-100 border rounded-lg text-gray-500"></div>
-                            <div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล</label><input type="text" id="edit-name" value="${currentUser.name}" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div>
-                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">กลุ่มงาน</label>
-                                <select id="edit-group" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"><option value="เคมีดิน" ${currentUser.group === 'เคมีดิน' ? 'selected' : ''}>เคมีดิน</option><option value="วิเคราะห์ดิน" ${currentUser.group === 'วิเคราะห์ดิน' ? 'selected' : ''}>วิเคราะห์ดิน</option><option value="ปฐพีวิทยา" ${currentUser.group === 'ปฐพีวิทยา' ? 'selected' : ''}>ปฐพีวิทยา</option><option value="อื่นๆ" ${currentUser.group === 'อื่นๆ' ? 'selected' : ''}>อื่นๆ</option></select>
-                            </div>
-                            <div><label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่านใหม่ (ว่างไว้ถ้าไม่เปลี่ยน)</label><input type="password" id="edit-pass" placeholder="New Password" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div>
-                            <button type="submit" class="btn-primary w-full">บันทึกการเปลี่ยนแปลง</button>
-                        </form>
-                     </div>
-                `;
-                container.innerHTML = html;
+                 html = `<h2 class="text-2xl font-bold mb-6 text-slate-800">ข้อมูลส่วนตัว</h2><div class="bg-white max-w-lg p-6 rounded-xl shadow-sm"><form onsubmit="handleProfileUpdate(event)" class="space-y-4"><div><label class="block text-sm font-medium text-gray-700 mb-1">Username (แก้ไขไม่ได้)</label><input type="text" value="${currentUser.username}" disabled class="w-full p-2 bg-gray-100 border rounded-lg text-gray-500"></div><div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล</label><input type="text" id="edit-name" value="${currentUser.name}" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div><div><label class="block text-sm font-medium text-gray-700 mb-1">กลุ่มงาน</label><select id="edit-group" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"><option value="เคมีดิน" ${currentUser.group === 'เคมีดิน' ? 'selected' : ''}>เคมีดิน</option><option value="วิเคราะห์ดิน" ${currentUser.group === 'วิเคราะห์ดิน' ? 'selected' : ''}>วิเคราะห์ดิน</option><option value="ปฐพีวิทยา" ${currentUser.group === 'ปฐพีวิทยา' ? 'selected' : ''}>ปฐพีวิทยา</option><option value="อื่นๆ" ${currentUser.group === 'อื่นๆ' ? 'selected' : ''}>อื่นๆ</option></select></div><div><label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่านใหม่ (ว่างไว้ถ้าไม่เปลี่ยน)</label><input type="password" id="edit-pass" placeholder="New Password" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div><button type="submit" class="btn-primary w-full">บันทึกการเปลี่ยนแปลง</button></form></div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        // --- CORE HELPERS ---
+        function showLoading(text = "กำลังโหลดข้อมูล...") {
+            const overlay = document.getElementById('loading-overlay');
+            const txt = document.getElementById('loading-text');
+            if (overlay && txt) {
+                txt.textContent = text;
+                overlay.classList.remove('hidden');
             }
         }
 
-        // --- NEW ACTION HANDLERS ---
-        async function handleReportItem(id) {
-            if(!confirm('ยืนยันว่าได้รายงานผลตัวอย่างนี้แล้ว?')) return;
-            const res = await apiCall('reportItem', { id: id, date: new Date().toISOString() });
-            if(res.status === 'success') { alert('บันทึกการรายงานผลเรียบร้อย'); await refreshData(); router('report'); } else { alert(res.message); }
+        function hideLoading() {
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) overlay.classList.add('hidden');
         }
 
-        async function handleDisposeItem(id, pref) {
-            if(!confirm(`ยืนยันการดำเนินการ (${pref === 'รับคืน' ? 'คืนเจ้าของ' : 'ทิ้ง'}) เรียบร้อยแล้ว?`)) return;
-            const res = await apiCall('disposeItem', { id: id });
-            if(res.status === 'success') { alert('บันทึกการดำเนินการเรียบร้อย'); await refreshData(); router('dispose'); } else { alert(res.message); }
+        // --- NEW BATCH FUNCTIONS ---
+        function toggleAllItems(source) {
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            checkboxes.forEach(cb => cb.checked = source.checked);
+            checkSelection();
         }
 
-        function filterBorrowList() {
-            const input = document.getElementById('borrow-search-input');
-            const filter = input.value.toLowerCase();
-            const rows = document.getElementsByClassName('borrow-item-row');
-            for (let i = 0; i < rows.length; i++) {
-                const text = rows[i].textContent || rows[i].innerText;
-                if (text.toLowerCase().indexOf(filter) > -1) rows[i].style.display = ""; else rows[i].style.display = "none";
+        function checkSelection() {
+            const checkedCount = document.querySelectorAll('.item-checkbox:checked').length;
+            const btn = document.getElementById('btn-delete-selected');
+            const countSpan = document.getElementById('selected-count');
+            if(btn && countSpan) {
+                countSpan.textContent = checkedCount;
+                if(checkedCount > 0) btn.classList.remove('hidden'); else btn.classList.add('hidden');
             }
         }
 
-        function filterTable(inputId, tableId) {
-            const input = document.getElementById(inputId);
-            const filter = input.value.toLowerCase();
-            const table = document.getElementById(tableId);
-            const tr = table.getElementsByTagName("tr");
-            for (let i = 1; i < tr.length; i++) { 
-                const tdArr = tr[i].getElementsByTagName("td");
-                let found = false;
-                for(let j=0; j<tdArr.length; j++) {
-                    if (tdArr[j]) { if (tdArr[j].textContent.toLowerCase().indexOf(filter) > -1) { found = true; break; } }
-                }
-                tr[i].style.display = found ? "" : "none";
+        async function deleteSelected() {
+            const checked = document.querySelectorAll('.item-checkbox:checked');
+            if(checked.length === 0) return;
+            if(!confirm(`ยืนยันการลบ ${checked.length} รายการที่เลือก?`)) return;
+
+            showLoading(`กำลังลบ ${checked.length} รายการ...`);
+            let successCount = 0;
+            
+            for(let cb of checked) {
+                await apiCall('deleteItem', { id: cb.value }, false); // Keep loading
+                successCount++;
             }
+            
+            hideLoading();
+            alert(`ลบเสร็จสิ้น ${successCount} รายการ`);
+            await refreshData();
+            router('items');
         }
 
-        function downloadTemplate() {
-            const wb = XLSX.utils.book_new();
-            const ws_data = [
-                ["เลขรับ", "จำนวนตัวอย่าง", "วันที่รับ", "ชั้นวาง", "พารามิเตอร์", "stimeout"],
-                ["S-67001", 1, "2024-01-20", "A1", "pH, EC", "รับคืน"],
-                ["S-67002", 5, "2024-01-20", "B2", "N, P, K", "ทิ้ง"]
-            ];
-            const ws = XLSX.utils.aoa_to_sheet(ws_data);
-            XLSX.utils.book_append_sheet(wb, ws, "Template");
-            XLSX.writeFile(wb, "Soil_Sample_Template.xlsx");
-        }
-        
-        function exportXLSX() {
-            if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน กรุณารีเฟรชหน้าเว็บ'); return; }
-            try {
-                const wb = XLSX.utils.book_new();
-                const ws_data = events.map(e => ({ "เวลา": formatDateForPDF(e.date), "ประเภทรายการ": e.type === 'Borrow' ? 'เบิกออก' : 'นำคืน', "เลขรับตัวอย่าง": e.itemName, "ผู้ดำเนินการ": e.user, "หมายเหตุ": e.note }));
-                const ws = XLSX.utils.json_to_sheet(ws_data);
-                // Changed from "History" to "Report" to avoid reserved name error
-                XLSX.utils.book_append_sheet(wb, ws, "Report");
-                XLSX.writeFile(wb, "History_Report.xlsx");
-            } catch (err) {
-                console.error(err);
-                alert("เกิดข้อผิดพลาดในการ Export Excel: " + err.message);
-            }
-        }
-
-        function exportDisposeXLSX() {
+        function exportItemsXLSX() {
             if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; }
-            const now = new Date();
-            const overdueItems = items.filter(i => {
-                if (!i.dateReported || i.disposalStatus === 'Completed') return false;
-                return calculateDaysRemaining(i.dateReported) >= 60;
-            });
             const wb = XLSX.utils.book_new();
-            const ws_data = overdueItems.map(i => ({ "เลขรับ": i.receiptNo, "วันที่รายงานผล": formatDateForPDF(i.dateReported), "เกินกำหนด(วัน)": calculateDaysRemaining(i.dateReported), "ความต้องการ(stimeout)": i.disposalPref }));
+            const ws_data = items.map(i => ({ "เลขรับ": i.receiptNo, "จำนวน": i.qty, "ชั้นเก็บ": i.layer, "วันที่รับ": formatDateTh(i.dateReceived, false), "พารามิเตอร์": i.params, "stimeout": i.disposalPref, "สถานะ": i.status }));
             const ws = XLSX.utils.json_to_sheet(ws_data);
-            XLSX.utils.book_append_sheet(wb, ws, "Disposal_List");
-            XLSX.writeFile(wb, "Disposal_List.xlsx");
+            XLSX.utils.book_append_sheet(wb, ws, "SoilItems");
+            XLSX.writeFile(wb, "Soil_Samples_List.xlsx");
         }
 
-        function exportDisposePDF() {
+        function exportItemsPDF() {
             if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; }
-            const now = new Date();
-            const overdueItems = items.filter(i => {
-                if (!i.dateReported || i.disposalStatus === 'Completed') return false;
-                return calculateDaysRemaining(i.dateReported) >= 60;
-            });
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            doc.text("Disposal List Report", 14, 20);
+            doc.text("Soil Samples List", 14, 20);
             doc.setFontSize(10);
             doc.text(`Generated on ${formatDateForPDF(new Date().toISOString())}`, 14, 30);
-            
-            const tableColumn = ["Sample No", "Report Date", "Overdue (Days)", "Pref"];
-            const tableRows = overdueItems.map(i => [i.receiptNo, formatDateForPDF(i.dateReported), calculateDaysRemaining(i.dateReported), i.disposalPref === 'รับคืน' ? 'Return' : 'Discard']);
-            
+            const tableColumn = ["Sample No", "Qty", "Layer", "Date", "Status"];
+            const tableRows = items.map(i => [i.receiptNo, i.qty, i.layer, formatDateForPDF(i.dateReceived), i.status]);
             doc.autoTable({ head: [tableColumn], body: tableRows, startY: 40 });
-            doc.save("disposal-report.pdf");
+            doc.save("soil-items-list.pdf");
         }
 
-        function exportPDF() {
-            if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน กรุณารีเฟรชหน้าเว็บ'); return; }
-            try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
-                doc.text("Soilsheif Pro System - Transaction Report", 14, 20);
-                doc.setFontSize(10);
-                doc.text(`Generated by: ${currentUser.username} on ${formatDateForPDF(new Date().toISOString())}`, 14, 30);
-                
-                const tableColumn = ["Time", "Type", "Sample No", "User", "Note"];
-                const tableRows = [];
-                events.forEach(event => {
-                    // Map Thai values to English to avoid font issues in standard PDF
-                    const typeEn = event.type === 'Borrow' ? 'Borrow' : 'Return';
-                    const eventData = [formatDateForPDF(event.date), typeEn, event.itemName, event.user, event.note || '-'];
-                    tableRows.push(eventData);
+        // --- EXISTING FUNCTIONS (Helper wrappers) ---
+        async function approveUser(username) { if(!confirm('ยืนยันอนุมัติ?')) return; const res = await apiCall('approveUser', { username: username }); if(res.status === 'success') { alert('เรียบร้อย'); router('users'); } else { alert(res.message); } }
+        async function toggleUserReport(username, isChecked) { const res = await apiCall('toggleReportPermission', { username: username, canReport: isChecked }); if(res.status !== 'success') { alert(res.message); router('users'); } }
+        async function deleteUser(username) { if(!confirm('ยืนยันลบ?')) return; const res = await apiCall('deleteUser', { username: username }); if(res.status === 'success') { router('users'); } else { alert(res.message); } }
+        function openReportDateModal(id, receiptNo) { const today = new Date().toISOString().split('T')[0]; document.getElementById('modal-container').innerHTML = `<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 animate-[fadeIn_0.2s_ease-out]"><h3 class="text-xl font-bold mb-4 text-blue-700">ยืนยันการรายงานผล</h3><p class="text-sm text-gray-600 mb-4">เลขรับ: <b>${receiptNo}</b></p><div class="mb-4"><label class="block text-sm font-bold text-gray-700 mb-1">เลือกวันที่</label><input type="date" id="report-date-picker" value="${today}" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"></div><div class="flex justify-end space-x-2 border-t pt-4"><button onclick="document.getElementById('modal-container').innerHTML=''" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">ยกเลิก</button><button onclick="confirmReport('${id}')" class="btn-primary bg-blue-600 hover:bg-blue-700">ยืนยัน</button></div></div></div>`; }
+        async function confirmReport(id) { const date = document.getElementById('report-date-picker').value; if(!date) return alert("กรุณาเลือกวันที่"); document.getElementById('modal-container').innerHTML = ''; const res = await apiCall('reportItem', { id: id, date: date }); if(res.status === 'success') { alert('เรียบร้อย'); await refreshData(); router('report'); } else { alert(res.message); } }
+        async function handleDisposeItem(id, pref) { if(!confirm(`ยืนยันการดำเนินการ (${pref === 'รับคืน' ? 'คืนเจ้าของ' : 'ทิ้ง'})?`)) return; const res = await apiCall('disposeItem', { id: id }); if(res.status === 'success') { alert('เรียบร้อย'); await refreshData(); router('dispose'); } else { alert(res.message); } }
+        function filterBorrowList() { const input = document.getElementById('borrow-search-input'); const filter = input.value.toLowerCase(); const rows = document.getElementsByClassName('borrow-item-row'); for (let i = 0; i < rows.length; i++) { const text = rows[i].textContent || rows[i].innerText; if (text.toLowerCase().indexOf(filter) > -1) rows[i].style.display = ""; else rows[i].style.display = "none"; } }
+        function filterTable(inputId, tableId) { const input = document.getElementById(inputId); const filter = input.value.toLowerCase(); const table = document.getElementById(tableId); const tr = table.getElementsByTagName("tr"); for (let i = 1; i < tr.length; i++) { const tdArr = tr[i].getElementsByTagName("td"); let found = false; for(let j=0; j<tdArr.length; j++) { if (tdArr[j]) { if (tdArr[j].textContent.toLowerCase().indexOf(filter) > -1) { found = true; break; } } } tr[i].style.display = found ? "" : "none"; } }
+        function downloadTemplate() { const wb = XLSX.utils.book_new(); const ws_data = [["เลขรับ", "จำนวนตัวอย่าง", "วันที่รับ", "ชั้นวาง", "พารามิเตอร์", "stimeout"], ["S-67001", 1, "2024-01-20", "A1", "pH, EC", "รับคืน"], ["S-67002", 5, "2024-01-20", "B2", "N, P, K", "ทิ้ง"]]; const ws = XLSX.utils.aoa_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "Template"); XLSX.writeFile(wb, "Soil_Sample_Template.xlsx"); }
+        function exportXLSX() { if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } const wb = XLSX.utils.book_new(); const ws_data = events.map(e => ({ "เวลา": formatDateForPDF(e.date), "ประเภทรายการ": e.type === 'Borrow' ? 'เบิกออก' : 'นำคืน', "เลขรับตัวอย่าง": e.itemName, "ผู้ดำเนินการ": e.user, "หมายเหตุ": e.note })); const ws = XLSX.utils.json_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "Report"); XLSX.writeFile(wb, "History_Report.xlsx"); }
+        function exportDisposeXLSX() { if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } const overdueItems = items.filter(i => { if (!i.dateReported || i.disposalStatus === 'Completed') return false; return calculateDaysRemaining(i.dateReported) >= 60; }); const wb = XLSX.utils.book_new(); const ws_data = overdueItems.map(i => ({ "เลขรับ": i.receiptNo, "วันที่รายงานผล": formatDateForPDF(i.dateReported), "เกินกำหนด(วัน)": calculateDaysRemaining(i.dateReported), "ความต้องการ(stimeout)": i.disposalPref })); const ws = XLSX.utils.json_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "Disposal_List"); XLSX.writeFile(wb, "Disposal_List.xlsx"); }
+        function exportDisposePDF() { if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } const overdueItems = items.filter(i => { if (!i.dateReported || i.disposalStatus === 'Completed') return false; return calculateDaysRemaining(i.dateReported) >= 60; }); const { jsPDF } = window.jspdf; const doc = new jsPDF(); doc.text("Disposal List Report", 14, 20); doc.setFontSize(10); doc.text(`Generated on ${formatDateForPDF(new Date().toISOString())}`, 14, 30); const tableColumn = ["Sample No", "Report Date", "Overdue (Days)", "Pref"]; const tableRows = overdueItems.map(i => [i.receiptNo, formatDateForPDF(i.dateReported), calculateDaysRemaining(i.dateReported), i.disposalPref === 'รับคืน' ? 'Return' : 'Discard']); doc.autoTable({ head: [tableColumn], body: tableRows, startY: 40 }); doc.save("disposal-report.pdf"); }
+        function exportPDF() { if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } try { const { jsPDF } = window.jspdf; const doc = new jsPDF(); doc.text("Soilsheif Pro System - Transaction Report", 14, 20); doc.setFontSize(10); doc.text(`Generated by: ${currentUser.username} on ${formatDateForPDF(new Date().toISOString())}`, 14, 30); const tableColumn = ["Time", "Type", "Sample No", "User", "Note"]; const tableRows = []; events.forEach(event => { const typeEn = event.type === 'Borrow' ? 'Borrow' : 'Return'; const eventData = [formatDateForPDF(event.date), typeEn, event.itemName, event.user, event.note || '-']; tableRows.push(eventData); }); doc.autoTable({ head: [tableColumn], body: tableRows, startY: 40 }); doc.save("soil-report.pdf"); } catch (err) { console.error(err); alert("Error Export PDF: " + err.message); } }
+        async function handleImport(input) { const file = input.files[0]; if (!file) return; if(!confirm("ยืนยันการนำเข้าข้อมูล?")) { input.value = ''; return; } const reader = new FileReader(); reader.onload = async function(e) { const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, {type: 'array'}); const worksheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonData = XLSX.utils.sheet_to_json(worksheet); if (jsonData.length === 0) { alert("ไม่พบข้อมูลในไฟล์"); return; } showLoading(`กำลังนำเข้า ${jsonData.length} รายการ...`); let successCount = 0; let failCount = 0; for (let i = 0; i < jsonData.length; i++) { const row = jsonData[i]; const receiptNo = row['เลขรับ'] || row['receiptNo']; if(!receiptNo) continue; const newItem = { receiptNo: receiptNo, qty: row['จำนวนตัวอย่าง'] || row['qty'] || 1, dateReceived: row['วันที่รับ'] || row['dateReceived'] || new Date().toISOString().split('T')[0], layer: row['ชั้นวาง'] || row['layer'] || '-', params: row['พารามิเตอร์'] || row['params'] || '-', disposalPref: row['stimeout'] || row['DisposalPref'] || 'ทิ้ง' }; try { const res = await apiCall('addItem', { item: newItem }, false); if(res.status === 'success') successCount++; else failCount++; } catch (err) { failCount++; } } hideLoading(); input.value = ''; alert(`นำเข้าเสร็จสิ้น: สำเร็จ ${successCount} รายการ, ล้มเหลว ${failCount} รายการ`); await refreshData(); router('items'); }; reader.readAsArrayBuffer(file); }
+        function openItemModal(item = null) { const isEdit = !!item; const modalHtml = `<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 animate-[fadeIn_0.2s_ease-out]"><h3 class="text-xl font-bold mb-4">${isEdit ? 'แก้ไขตัวอย่าง' : 'เพิ่มตัวอย่างใหม่'}</h3><form onsubmit="handleSaveItem(event, '${isEdit ? item.id : ''}')" class="space-y-3"><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-600">เลขรับ</label><input type="text" id="m-receipt" value="${item?.receiptNo || ''}" class="w-full p-2 border rounded" required></div><div><label class="block text-xs font-bold text-gray-600">วันที่รับ</label><input type="date" id="m-date" value="${item?.dateReceived || ''}" class="w-full p-2 border rounded" required></div></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-600">จำนวน</label><input type="number" id="m-qty" value="${item?.qty || 1}" class="w-full p-2 border rounded" required></div><div><label class="block text-xs font-bold text-gray-600">ชั้นเก็บ</label><input type="text" id="m-layer" value="${item?.layer || ''}" class="w-full p-2 border rounded" placeholder="เช่น A1"></div></div><div><label class="block text-xs font-bold text-gray-600">พารามิเตอร์วิเคราะห์</label><input type="text" id="m-params" value="${item?.params || ''}" class="w-full p-2 border rounded" placeholder="เช่น pH, EC, N, P, K"></div><div><label class="block text-xs font-bold text-gray-600">ความต้องการหลังวิเคราะห์ (stimeout)</label><select id="m-pref" class="w-full p-2 border rounded"><option value="ทิ้ง" ${item?.disposalPref === 'ทิ้ง' ? 'selected' : ''}>ทิ้ง</option><option value="รับคืน" ${item?.disposalPref === 'รับคืน' ? 'selected' : ''}>รับคืน</option></select></div><div class="flex justify-end space-x-2 mt-4 pt-4 border-t"><button type="button" onclick="document.getElementById('modal-container').innerHTML=''" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">ยกเลิก</button><button type="submit" class="btn-primary">บันทึก</button></div></form></div></div>`; document.getElementById('modal-container').innerHTML = modalHtml; }
+        async function handleSaveItem(e, id) { e.preventDefault(); const newItem = { id: id, receiptNo: document.getElementById('m-receipt').value, dateReceived: document.getElementById('m-date').value, qty: document.getElementById('m-qty').value, layer: document.getElementById('m-layer').value, params: document.getElementById('m-params').value, disposalPref: document.getElementById('m-pref').value }; const action = id ? 'editItem' : 'addItem'; const res = await apiCall(action, { item: newItem }); if (res.status === 'success') { document.getElementById('modal-container').innerHTML = ''; await refreshData(); router('items'); } else { alert(res.message); } }
+        async function deleteItem(id) { if (!confirm('ยืนยันที่จะลบรายการนี้?')) return; const res = await apiCall('deleteItem', { id }); if (res.status === 'success') { await refreshData(); router('items'); } }
+        async function processTransaction(type, itemId) { if (!itemId) return alert('รหัสสินค้าไม่ถูกต้อง'); const action = type === 'borrow' ? 'borrowItem' : 'returnItem'; const res = await apiCall(action, { itemId: itemId, username: currentUser.username }); if (res.status === 'success') { alert(type === 'borrow' ? 'เบิกสำเร็จ' : 'คืนสำเร็จ'); await refreshData(); router('borrow'); } else { alert(res.message); } }
+        async function handleProfileUpdate(e) { e.preventDefault(); const pass = document.getElementById('edit-pass').value; const updateData = { username: currentUser.username, name: document.getElementById('edit-name').value, group: document.getElementById('edit-group').value, password: pass ? pass : currentUser.password }; const res = await apiCall('updateProfile', updateData); if(res.status === 'success') { currentUser.name = updateData.name; currentUser.group = updateData.group; if(pass) currentUser.password = pass; localStorage.setItem('soilAppUser', JSON.stringify(currentUser)); alert('แก้ไขข้อมูลสำเร็จ'); updateNavUser(); } }
+
+        function updateStatusBadge() { const badge = document.getElementById('status-badge'); badge.classList.remove('hidden'); if (isRealMode) { badge.className = 'status-badge status-online'; badge.innerHTML = '<i class="fa-solid fa-wifi"></i> <span>ออนไลน์ (Google Sheet)</span>'; } else { badge.className = 'status-badge status-demo'; badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> <span>โหมดจำลอง (ไม่บันทึก)</span>'; } }
+        function formatDateTh(dateString, includeTime = true) { if (!dateString) return '-'; const date = new Date(dateString); if (isNaN(date.getTime())) return dateString; const options = { year: 'numeric', month: 'short', day: 'numeric' }; if (includeTime) { options.hour = '2-digit'; options.minute = '2-digit'; options.hour12 = false; } return date.toLocaleString('th-TH', options); }
+        function formatDateForPDF(dateString) { if (!dateString) return '-'; const date = new Date(dateString); if (isNaN(date.getTime())) return dateString; const day = String(date.getDate()).padStart(2, '0'); const month = String(date.getMonth() + 1).padStart(2, '0'); const year = date.getFullYear(); const hours = String(date.getHours()).padStart(2, '0'); const minutes = String(date.getMinutes()).padStart(2, '0'); return `${day}/${month}/${year} ${hours}:${minutes}`; }
+        function calculateDaysRemaining(dateReported) { if (!dateReported) return -1; const reported = new Date(dateReported); const now = new Date(); const diffTime = Math.abs(now - reported); const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); return diffDays; }
+        
+        // --- API CALL ---
+        async function apiCall(action, payload = {}, autoHideLoading = true) {
+            // Manually manage loading state based on context
+            if(autoHideLoading) showLoading("กำลังประมวลผล...");
+            
+            if (!isRealMode) {
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        if(autoHideLoading) hideLoading();
+                        let result = { status: 'success' };
+                        // Mock handlers...
+                        if (action === 'login') { const user = mockUsers.find(u => u.username === payload.username && u.password === payload.password); if (user) result.user = user; else result = { status: 'error', message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }; }
+                        else if (action === 'getItems') { result.items = [...mockItems]; }
+                        else if (action === 'getHistory') { result.events = [...mockEvents]; }
+                        else if (action === 'getUsers') { result.users = mockUsers; }
+                        else if (action === 'reportItem') { const item = mockItems.find(i => i.id === payload.id); if(item) item.dateReported = payload.date; result.message = "รายงานผลสำเร็จ"; }
+                        else if (action === 'disposeItem') { const item = mockItems.find(i => i.id === payload.id); if(item) item.disposalStatus = 'Completed'; result.message = "ดำเนินการสำเร็จ"; }
+                        else if (action === 'deleteItem') { const idx = mockItems.findIndex(i => i.id === payload.id); if(idx > -1) mockItems.splice(idx, 1); result.message = "ลบสำเร็จ"; }
+                        resolve(result);
+                    }, MOCK_DELAY);
                 });
-                
-                doc.autoTable({ head: [tableColumn], body: tableRows, startY: 40 });
-                doc.save("soil-report.pdf");
-            } catch (err) {
-                console.error(err);
-                alert("เกิดข้อผิดพลาดในการ Export PDF: " + err.message);
+            } else {
+                try {
+                    const response = await fetch(API_URL.trim(), {
+                        method: 'POST',
+                        redirect: 'follow',
+                        headers: { "Content-Type": "text/plain;charset=utf-8" },
+                        body: JSON.stringify({ action, ...payload })
+                    });
+                    const data = await response.json();
+                    if(autoHideLoading) hideLoading();
+                    return data;
+                } catch (e) {
+                    if(autoHideLoading) hideLoading();
+                    console.error(e);
+                    // No alert here, handled by caller or generic error
+                    return { status: 'error', message: e.toString() };
+                }
             }
         }
 
-        async function handleImport(input) {
-            const file = input.files[0];
-            if (!file) return;
-            if(!confirm("ยืนยันการนำเข้าข้อมูล?")) { input.value = ''; return; }
-
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-                if (jsonData.length === 0) { alert("ไม่พบข้อมูลในไฟล์"); return; }
-                const loader = document.getElementById('loading-overlay');
-                const loaderText = document.getElementById('loading-text');
-                loader.classList.remove('hidden');
-                let successCount = 0; let failCount = 0;
-
-                for (let i = 0; i < jsonData.length; i++) {
-                    const row = jsonData[i];
-                    loaderText.textContent = `กำลังนำเข้า ${i + 1}/${jsonData.length}...`;
-                    const receiptNo = row['เลขรับ'] || row['receiptNo'];
-                    if(!receiptNo) continue;
-
-                    const newItem = {
-                        receiptNo: receiptNo,
-                        qty: row['จำนวนตัวอย่าง'] || row['qty'] || 1,
-                        dateReceived: row['วันที่รับ'] || row['dateReceived'] || new Date().toISOString().split('T')[0],
-                        layer: row['ชั้นวาง'] || row['layer'] || '-',
-                        params: row['พารามิเตอร์'] || row['params'] || '-',
-                        disposalPref: row['stimeout'] || row['DisposalPref'] || 'ทิ้ง'
-                    };
-                    try { const res = await apiCall('addItem', { item: newItem }); if(res.status === 'success') successCount++; else failCount++; } catch (err) { failCount++; }
-                }
-                loader.classList.add('hidden'); input.value = ''; alert(`นำเข้าเสร็จสิ้น: สำเร็จ ${successCount} รายการ, ล้มเหลว ${failCount} รายการ`); await refreshData(); router('items');
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        function openItemModal(item = null) {
-            const isEdit = !!item;
-            const modalHtml = `
-                <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 animate-[fadeIn_0.2s_ease-out]">
-                        <h3 class="text-xl font-bold mb-4">${isEdit ? 'แก้ไขตัวอย่าง' : 'เพิ่มตัวอย่างใหม่'}</h3>
-                        <form onsubmit="handleSaveItem(event, '${isEdit ? item.id : ''}')" class="space-y-3">
-                            <div class="grid grid-cols-2 gap-3">
-                                <div><label class="block text-xs font-bold text-gray-600">เลขรับ</label><input type="text" id="m-receipt" value="${item?.receiptNo || ''}" class="w-full p-2 border rounded" required></div>
-                                <div><label class="block text-xs font-bold text-gray-600">วันที่รับ</label><input type="date" id="m-date" value="${item?.dateReceived || ''}" class="w-full p-2 border rounded" required></div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div><label class="block text-xs font-bold text-gray-600">จำนวน</label><input type="number" id="m-qty" value="${item?.qty || 1}" class="w-full p-2 border rounded" required></div>
-                                <div><label class="block text-xs font-bold text-gray-600">ชั้นเก็บ</label><input type="text" id="m-layer" value="${item?.layer || ''}" class="w-full p-2 border rounded" placeholder="เช่น A1"></div>
-                            </div>
-                            <div><label class="block text-xs font-bold text-gray-600">พารามิเตอร์วิเคราะห์</label><input type="text" id="m-params" value="${item?.params || ''}" class="w-full p-2 border rounded" placeholder="เช่น pH, EC, N, P, K"></div>
-                            <div><label class="block text-xs font-bold text-gray-600">ความต้องการหลังวิเคราะห์ (stimeout)</label>
-                                <select id="m-pref" class="w-full p-2 border rounded">
-                                    <option value="ทิ้ง" ${item?.disposalPref === 'ทิ้ง' ? 'selected' : ''}>ทิ้ง</option>
-                                    <option value="รับคืน" ${item?.disposalPref === 'รับคืน' ? 'selected' : ''}>รับคืน</option>
-                                </select>
-                            </div>
-                            <div class="flex justify-end space-x-2 mt-4 pt-4 border-t">
-                                <button type="button" onclick="document.getElementById('modal-container').innerHTML=''" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">ยกเลิก</button>
-                                <button type="submit" class="btn-primary">บันทึก</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            `;
-            document.getElementById('modal-container').innerHTML = modalHtml;
-        }
-
-        async function handleSaveItem(e, id) {
-            e.preventDefault();
-            const newItem = {
-                id: id,
-                receiptNo: document.getElementById('m-receipt').value,
-                dateReceived: document.getElementById('m-date').value,
-                qty: document.getElementById('m-qty').value,
-                layer: document.getElementById('m-layer').value,
-                params: document.getElementById('m-params').value,
-                disposalPref: document.getElementById('m-pref').value
-            };
-            const action = id ? 'editItem' : 'addItem';
-            const res = await apiCall(action, { item: newItem });
-            if (res.status === 'success') { document.getElementById('modal-container').innerHTML = ''; await refreshData(); router('items'); } else { alert(res.message); }
-        }
-
-        async function deleteItem(id) {
-            if (!confirm('ยืนยันที่จะลบรายการนี้?')) return;
-            const res = await apiCall('deleteItem', { id });
-            if (res.status === 'success') { await refreshData(); router('items'); }
-        }
-
-        async function processTransaction(type, itemId) {
-            if (!itemId) return alert('รหัสสินค้าไม่ถูกต้อง');
-            const action = type === 'borrow' ? 'borrowItem' : 'returnItem';
-            const res = await apiCall(action, { itemId: itemId, username: currentUser.username });
-            if (res.status === 'success') { alert(type === 'borrow' ? 'เบิกสำเร็จ' : 'คืนสำเร็จ'); await refreshData(); router('borrow'); } else { alert(res.message); }
-        }
-        
-        async function handleProfileUpdate(e) {
-            e.preventDefault();
-            const pass = document.getElementById('edit-pass').value;
-            const updateData = { username: currentUser.username, name: document.getElementById('edit-name').value, group: document.getElementById('edit-group').value, password: pass ? pass : currentUser.password };
-            const res = await apiCall('updateProfile', updateData);
-            if(res.status === 'success') { currentUser.name = updateData.name; currentUser.group = updateData.group; if(pass) currentUser.password = pass; localStorage.setItem('soilAppUser', JSON.stringify(currentUser)); alert('แก้ไขข้อมูลสำเร็จ'); updateNavUser(); }
+        async function refreshData() {
+            // Note: Caller handles loading UI
+            const [itemRes, eventRes] = await Promise.all([
+                apiCall('getItems', {}, false), // Don't hide loading yet
+                apiCall('getHistory', {}, false)
+            ]);
+            
+            // Only update if valid data returned
+            if(itemRes && itemRes.status === 'success') items = itemRes.items || [];
+            if(eventRes && eventRes.status === 'success') events = eventRes.events || [];
+            
+            // Hide loading here as refreshData is usually the end of a chain
+            hideLoading();
         }
 
         window.onload = init;
