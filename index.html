@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soilsheif Pro System - กลุ่มวิจัยเคมีดิน</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <!-- SheetJS for Excel Import/Export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        .btn-primary {
+            @apply bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200;
+        }
+        
+        .btn-secondary {
+            @apply bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-colors duration-200;
+        }
+
+        .btn-success {
+            @apply bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200;
+        }
+        
+        .btn-danger {
+            @apply bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200;
+        }
+
+        .status-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-online { background-color: #10b981; color: white; }
+        .status-demo { background-color: #f59e0b; color: white; }
+
+        /* Nav Item Active State */
+        .nav-item.active {
+            background-color: #059669; /* emerald-600 */
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="text-gray-800 h-screen flex overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-slate-800 text-white flex-col hidden md:flex transition-all duration-300">
+        <div class="p-6 border-b border-slate-700 flex items-center space-x-3">
+            <div class="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center">
+                <i class="fa-solid fa-flask text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg">Soilsheif Pro System</h1>
+                <p class="text-xs text-slate-400">กลุ่มวิจัยเคมีดิน</p>
+            </div>
+        </div>
+
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto" id="nav-container">
+            <!-- Nav items will be injected -->
+        </nav>
+
+        <div class="p-4 border-t border-slate-700">
+            <div class="flex items-center space-x-3 mb-4 cursor-pointer hover:bg-slate-700 p-2 rounded" onclick="router('profile')">
+                <div class="w-8 h-8 bg-slate-600 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-user text-sm"></i>
+                </div>
+                <div class="flex-1 overflow-hidden">
+                    <p id="nav-username" class="text-sm font-semibold truncate">User</p>
+                    <p class="text-xs text-slate-400">แก้ไขข้อมูลส่วนตัว</p>
+                </div>
+            </div>
+            <button onclick="logout()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded text-sm transition-colors">
+                <i class="fa-solid fa-right-from-bracket mr-2"></i> ออกจากระบบ
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+        <header class="bg-white shadow-sm p-4 flex justify-between items-center md:hidden z-20">
+            <div class="font-bold text-emerald-700">Soilsheif Pro System</div>
+            <button onclick="document.getElementById('sidebar').classList.toggle('hidden'); document.getElementById('sidebar').classList.toggle('absolute'); document.getElementById('sidebar').classList.toggle('z-50'); document.getElementById('sidebar').classList.toggle('h-full');" class="text-gray-600">
+                <i class="fa-solid fa-bars text-xl"></i>
+            </button>
+        </header>
+
+        <div id="content-area" class="flex-1 overflow-y-auto p-4 md:p-8 relative"></div>
+        
+        <div id="status-badge" class="status-badge status-demo hidden">
+            <i class="fa-solid fa-circle-info"></i><span id="status-text">โหมดจำลอง</span>
+        </div>
+        
+        <div id="loading-overlay" class="absolute inset-0 bg-white/80 z-50 flex items-center justify-center hidden">
+            <div class="text-center">
+                <i class="fa-solid fa-spinner fa-spin text-4xl text-emerald-600 mb-2"></i>
+                <p class="text-emerald-800 font-semibold" id="loading-text">กำลังโหลดข้อมูล...</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="modal-container"></div>
+
+    <div id="login-screen" class="fixed inset-0 bg-slate-900 z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+            <div class="bg-emerald-600 p-6 text-white text-center">
+                <i class="fa-solid fa-flask text-4xl mb-3"></i>
+                <h2 class="text-2xl font-bold">กลุ่มวิจัยเคมีดิน</h2>
+                <p class="text-emerald-100 text-sm">ระบบบริหารจัดการตัวอย่างดิน</p>
+            </div>
+            <div class="p-8">
+                <div class="flex mb-6 border-b">
+                    <button onclick="showLoginTab('login')" id="tab-login" class="flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600">เข้าสู่ระบบ</button>
+                    <button onclick="showLoginTab('register')" id="tab-register" class="flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600">ลงทะเบียน</button>
+                </div>
+                <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ใช้</label><input type="text" id="login-user" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="admin" required></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label><input type="password" id="login-pass" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="admin123" required></div>
+                    <div class="flex items-center"><input type="checkbox" id="remember-me" class="mr-2"><label for="remember-me" class="text-sm text-gray-600">จำการเข้าสู่ระบบไว้</label></div>
+                    <div id="login-error-msg" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-sm"><span class="block sm:inline">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</span></div>
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg transition-colors">เข้าสู่ระบบ</button>
+                </form>
+                <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ใช้</label><input type="text" id="reg-user" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label><input type="password" id="reg-pass" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล</label><input type="text" id="reg-name" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">กลุ่มที่สังกัด</label><select id="reg-group" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"><option value="เคมีดิน">เคมีดิน</option><option value="วิเคราะห์ดิน">วิเคราะห์ดิน</option><option value="ปฐพีวิทยา">ปฐพีวิทยา</option><option value="อื่นๆ">อื่นๆ</option></select></div>
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg transition-colors">ลงทะเบียน</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const MOCK_DELAY = 600;
+        const HARDCODED_API_URL = "https://script.google.com/macros/s/AKfycbzb3O1kWnyJtD7jPor_rfnJOrD9df1Jzjb66QtBXeIzgyKZHXRq8FramTk6RGptFCRKLQ/exec";
+        
+        let currentUser = null;
+        let items = [];
+        let events = [];
+        let isRealMode = true; 
+        let API_URL = HARDCODED_API_URL; 
+        let statusChartInstance = null; 
+
+        // Authorized users for Report Menu (Admin determines)
+        const REPORT_ACCESS_USERS = ['admin'];
+
+        const mockItems = [
+            { id: '1', receiptNo: 'S-66001', qty: 5, dateReceived: '2023-10-01', layer: 'A1', params: 'pH, EC, OM', status: 'Available', holder: '-', disposalPref: 'รับคืน', dateReported: '', disposalStatus: '' },
+            { id: '2', receiptNo: 'S-66002', qty: 2, dateReceived: '2023-10-05', layer: 'B2', params: 'N, P, K', status: 'Borrowed', holder: 'admin', disposalPref: 'ทิ้ง', dateReported: '2023-11-01', disposalStatus: 'Completed' },
+            { id: '3', receiptNo: 'S-66003', qty: 10, dateReceived: '2023-10-12', layer: 'A3', params: 'Heavy Metals', status: 'Available', holder: '-', disposalPref: 'ทิ้ง', dateReported: '2023-11-05', disposalStatus: '' },
+        ];
+        
+        const mockEvents = [
+            { id: 'e1', itemId: '2', itemName: 'S-66002', type: 'Borrow', user: 'admin', date: '2023-10-20T10:00:00', note: '-' }
+        ];
+
+        const mockUsers = [
+            { username: 'admin', password: 'admin123', name: 'Admin System', group: 'IT Support' }
+        ];
+
+        function init() {
+            const storedUser = localStorage.getItem('soilAppUser');
+            API_URL = HARDCODED_API_URL;
+            isRealMode = true;
+            updateStatusBadge();
+
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+                document.getElementById('login-screen').classList.add('hidden');
+                updateNavAndRedirect();
+            }
+        }
+
+        function updateNavAndRedirect() {
+            renderSidebar();
+            updateNavUser();
+            refreshData().then(() => router('dashboard'));
+        }
+
+        function renderSidebar() {
+            const nav = document.getElementById('nav-container');
+            const isAdmin = currentUser && currentUser.username === 'admin';
+            const canReport = isAdmin || REPORT_ACCESS_USERS.includes(currentUser.username);
+            
+            let html = `
+                <button id="nav-dashboard" onclick="router('dashboard')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors">
+                    <i class="fa-solid fa-chart-pie w-6"></i> <span>แดชบอร์ด</span>
+                </button>
+                <button id="nav-status" onclick="router('status')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors">
+                    <i class="fa-solid fa-list-check w-6"></i> <span>สถานะตัวอย่างทั้งหมด</span>
+                </button>
+            `;
+
+            if (canReport) {
+                html += `
+                <button id="nav-report" onclick="router('report')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-blue-300">
+                    <i class="fa-solid fa-clipboard-check w-6"></i> <span>รายงานผล</span>
+                </button>
+                `;
+            }
+
+            if (isAdmin) {
+                html += `
+                <button id="nav-dispose" onclick="router('dispose')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-orange-300">
+                    <i class="fa-solid fa-trash-can-arrow-up w-6"></i> <span>จำหน่ายตัวอย่าง</span>
+                </button>
+                <button id="nav-items" onclick="router('items')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-emerald-300">
+                    <i class="fa-solid fa-box-archive w-6"></i> <span>จัดการตัวอย่างดิน (Admin)</span>
+                </button>
+                `;
+            }
+
+            html += `
+                <button id="nav-borrow" onclick="router('borrow')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors">
+                    <i class="fa-solid fa-hand-holding w-6"></i> <span>เบิก-คืน ตัวอย่าง</span>
+                </button>
+                <button id="nav-history" onclick="router('history')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors">
+                    <i class="fa-solid fa-clock-rotate-left w-6"></i> <span>ประวัติ & รายงาน</span>
+                </button>
+            `;
+            nav.innerHTML = html;
+        }
+
+        function updateStatusBadge() {
+            const badge = document.getElementById('status-badge');
+            badge.classList.remove('hidden');
+            if (isRealMode) {
+                badge.className = 'status-badge status-online';
+                badge.innerHTML = '<i class="fa-solid fa-wifi"></i> <span>ออนไลน์ (Google Sheet)</span>';
+            } else {
+                badge.className = 'status-badge status-demo';
+                badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> <span>โหมดจำลอง (ไม่บันทึก)</span>';
+            }
+        }
+
+        function formatDateTh(dateString, includeTime = true) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return dateString;
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            if (includeTime) { options.hour = '2-digit'; options.minute = '2-digit'; options.hour12 = false; }
+            return date.toLocaleString('th-TH', options);
+        }
+
+        function formatDateForPDF(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return dateString;
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${day}/${month}/${year} ${hours}:${minutes}`;
+        }
+
+        function calculateDaysRemaining(dateReported) {
+            if (!dateReported) return -1;
+            const reported = new Date(dateReported);
+            const now = new Date();
+            const diffTime = Math.abs(now - reported);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            return diffDays;
+        }
+
+        async function apiCall(action, payload = {}) {
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            if (!isRealMode) {
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        document.getElementById('loading-overlay').classList.add('hidden');
+                        let result = { status: 'success' };
+                        if (action === 'login') {
+                            const user = mockUsers.find(u => u.username === payload.username && u.password === payload.password);
+                            if (user) result.user = user; else result = { status: 'error', message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' };
+                        } else if (action === 'getItems') { result.items = [...mockItems];
+                        } else if (action === 'getHistory') { result.events = [...mockEvents];
+                        } else if (action === 'reportItem') {
+                             const item = mockItems.find(i => i.id === payload.id);
+                             if(item) item.dateReported = payload.date;
+                             result.message = "รายงานผลสำเร็จ";
+                        } else if (action === 'disposeItem') {
+                             const item = mockItems.find(i => i.id === payload.id);
+                             if(item) item.disposalStatus = 'Completed';
+                             result.message = "ดำเนินการสำเร็จ";
+                        }
+                        resolve(result);
+                    }, MOCK_DELAY);
+                });
+            } else {
+                try {
+                    const response = await fetch(API_URL.trim(), {
+                        method: 'POST',
+                        redirect: 'follow',
+                        headers: { "Content-Type": "text/plain;charset=utf-8" },
+                        body: JSON.stringify({ action, ...payload })
+                    });
+                    const data = await response.json();
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    return data;
+                } catch (e) {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    console.error(e);
+                    alert("เชื่อมต่อไม่สำเร็จ!");
+                    return { status: 'error', message: e.toString() };
+                }
+            }
+        }
+
+        async function refreshData() {
+            const itemRes = await apiCall('getItems');
+            if(itemRes.status === 'success') items = itemRes.items;
+            const eventRes = await apiCall('getHistory');
+            if(eventRes.status === 'success') events = eventRes.events;
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            document.getElementById('login-error-msg').classList.add('hidden');
+            const user = document.getElementById('login-user').value;
+            const pass = document.getElementById('login-pass').value;
+            const remember = document.getElementById('remember-me').checked;
+            const res = await apiCall('login', { username: user, password: pass });
+            if (res.status === 'success') {
+                currentUser = res.user;
+                if (remember) localStorage.setItem('soilAppUser', JSON.stringify(currentUser));
+                document.getElementById('login-screen').classList.add('hidden');
+                updateNavAndRedirect();
+            } else {
+                const errorDiv = document.getElementById('login-error-msg');
+                errorDiv.querySelector('span').textContent = res.message || "เกิดข้อผิดพลาดในการเข้าสู่ระบบ";
+                errorDiv.classList.remove('hidden');
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const payload = { username: document.getElementById('reg-user').value, password: document.getElementById('reg-pass').value, name: document.getElementById('reg-name').value, group: document.getElementById('reg-group').value };
+            const res = await apiCall('register', payload);
+            if (res.status === 'success') { alert('ลงทะเบียนสำเร็จ'); showLoginTab('login'); } else { alert(res.message); }
+        }
+
+        function logout() { localStorage.removeItem('soilAppUser'); location.reload(); }
+        function showLoginTab(tab) {
+            document.getElementById('login-error-msg').classList.add('hidden');
+            if (tab === 'login') { document.getElementById('login-form').classList.remove('hidden'); document.getElementById('register-form').classList.add('hidden'); document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; } 
+            else { document.getElementById('login-form').classList.add('hidden'); document.getElementById('register-form').classList.remove('hidden'); document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; }
+        }
+        function updateNavUser() { document.getElementById('nav-username').textContent = currentUser.name; }
+
+        function router(viewName) {
+            const container = document.getElementById('content-area');
+            document.querySelectorAll('.nav-item').forEach(el => { el.classList.remove('active'); el.classList.remove('bg-emerald-600'); });
+            const activeNav = document.getElementById(`nav-${viewName}`);
+            if(activeNav) activeNav.classList.add('active');
+
+            let html = '';
+
+            if (viewName === 'dashboard') {
+                const total = items.length;
+                const borrowed = items.filter(i => i.status === 'Borrowed').length;
+                const available = total - borrowed;
+                html = `
+                    <h2 class="text-2xl font-bold mb-6 text-slate-800">แดชบอร์ดภาพรวม</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-emerald-500"><div class="flex justify-between items-center"><div><p class="text-sm text-gray-500">ตัวอย่างดินทั้งหมด</p><p class="text-3xl font-bold text-gray-800">${total}</p></div><i class="fa-solid fa-layer-group text-3xl text-emerald-200"></i></div></div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500"><div class="flex justify-between items-center"><div><p class="text-sm text-gray-500">พร้อมเบิก</p><p class="text-3xl font-bold text-gray-800">${available}</p></div><i class="fa-solid fa-check-circle text-3xl text-blue-200"></i></div></div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-orange-500"><div class="flex justify-between items-center"><div><p class="text-sm text-gray-500">กำลังถูกเบิก</p><p class="text-3xl font-bold text-gray-800">${borrowed}</p></div><i class="fa-solid fa-hand-holding text-3xl text-orange-200"></i></div></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm max-w-lg mx-auto"><h3 class="font-bold mb-4">สถานะตัวอย่าง</h3><canvas id="statusChart"></canvas></div>
+                `;
+                container.innerHTML = html;
+                setTimeout(() => { const ctx = document.getElementById('statusChart').getContext('2d'); if (statusChartInstance) statusChartInstance.destroy(); statusChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: ['พร้อมเบิก', 'ถูกเบิกไป'], datasets: [{ data: [available, borrowed], backgroundColor: ['#10b981', '#f97316'], borderWidth: 0 }] }, options: { responsive: true, cutout: '70%' } }); }, 100);
+
+            } else if (viewName === 'status') {
+                html = `
+                    <h2 class="text-2xl font-bold mb-6 text-slate-800">สถานะตัวอย่างดินทั้งหมด</h2>
+                    <div class="bg-white p-4 rounded-xl shadow-sm mb-4"><input type="text" id="status-search" onkeyup="filterTable('status-search', 'status-table')" placeholder="ค้นหา..." class="w-full p-2 border rounded-lg"></div>
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto">
+                        <table id="status-table" class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">สถานะ</th><th class="p-4">ผู้ที่กำลังเบิกไป</th><th class="p-4">พารามิเตอร์</th><th class="p-4">รายงานผลเมื่อ</th></tr></thead>
+                        <tbody class="divide-y divide-gray-100">${items.map(item => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${item.layer}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-semibold ${item.status === 'Available' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${item.status === 'Available' ? 'ว่าง' : 'ถูกเบิก'}</span></td><td class="p-4 ${item.status === 'Borrowed' ? 'text-red-600 font-bold' : 'text-gray-400'}">${item.holder}</td><td class="p-4 text-xs text-gray-500">${item.params}</td><td class="p-4 text-xs text-blue-500">${formatDateTh(item.dateReported, false)}</td></tr>`).join('')}</tbody></table>
+                    </div></div>
+                `;
+                container.innerHTML = html;
+
+            } else if (viewName === 'report') {
+                // Report Menu: Show items not yet reported
+                const pendingReport = items.filter(i => !i.dateReported);
+                html = `
+                    <h2 class="text-2xl font-bold mb-6 text-blue-700">รายงานผลการวิเคราะห์</h2>
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm"><thead class="bg-blue-50 text-blue-800 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">วันที่รับ</th><th class="p-4">พารามิเตอร์</th><th class="p-4 text-center">จัดการ</th></tr></thead>
+                        <tbody class="divide-y divide-gray-100">${pendingReport.length === 0 ? '<tr><td colspan="4" class="p-6 text-center text-gray-400">ไม่มีรายการรอรายงานผล</td></tr>' : pendingReport.map(item => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${formatDateTh(item.dateReceived, false)}</td><td class="p-4 text-xs">${item.params}</td><td class="p-4 text-center"><button onclick="handleReportItem('${item.id}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow-sm text-sm transition-colors">ยืนยันรายงานผล</button></td></tr>`).join('')}</tbody></table>
+                    </div></div>
+                `;
+                container.innerHTML = html;
+
+            } else if (viewName === 'dispose') {
+                // Dispose Menu: Reported items > 60 days
+                const now = new Date();
+                const overdueItems = items.filter(i => {
+                    if (!i.dateReported || i.disposalStatus === 'Completed') return false;
+                    const days = calculateDaysRemaining(i.dateReported);
+                    return days >= 60;
+                });
+
+                html = `
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-orange-700">จำหน่ายตัวอย่าง (ครบกำหนด 60 วัน)</h2>
+                        <div class="flex space-x-2">
+                             <button onclick="exportDisposeXLSX()" class="btn-success text-sm"><i class="fa-solid fa-file-excel mr-2"></i>Export Excel</button>
+                             <button onclick="exportDisposePDF()" class="btn-secondary text-sm"><i class="fa-solid fa-file-pdf mr-2"></i>Export PDF</button>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm"><thead class="bg-orange-50 text-orange-800 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">วันที่รายงานผล</th><th class="p-4">เกินกำหนด (วัน)</th><th class="p-4">ความต้องการ (stimeout)</th><th class="p-4 text-center">จัดการ</th></tr></thead>
+                        <tbody class="divide-y divide-gray-100">${overdueItems.length === 0 ? '<tr><td colspan="5" class="p-6 text-center text-gray-400">ไม่มีรายการครบกำหนดจำหน่าย</td></tr>' : overdueItems.map(item => {
+                            const days = calculateDaysRemaining(item.dateReported);
+                            return `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${formatDateTh(item.dateReported, false)}</td><td class="p-4 text-red-600 font-bold">${days} วัน</td><td class="p-4"><span class="px-2 py-1 rounded text-xs font-bold ${item.disposalPref === 'รับคืน' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-800'}">${item.disposalPref}</span></td><td class="p-4 text-center"><button onclick="handleDisposeItem('${item.id}', '${item.disposalPref}')" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded shadow-sm text-sm transition-colors">ดำเนินการ (${item.disposalPref === 'รับคืน' ? 'คืนเจ้าของ' : 'ทิ้ง'})</button></td></tr>`
+                        }).join('')}</tbody></table>
+                    </div></div>
+                `;
+                container.innerHTML = html;
+
+            } else if (viewName === 'items') {
+                if (currentUser.username !== 'admin') { container.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (สำหรับ Admin เท่านั้น)</div>`; return; }
+                html = `
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                        <h2 class="text-2xl font-bold text-slate-800">จัดการตัวอย่างดิน (Admin)</h2>
+                        <div class="flex space-x-2"><button onclick="downloadTemplate()" class="btn-secondary text-sm"><i class="fa-solid fa-file-excel mr-2"></i>โหลดฟอร์ม Import</button><div class="relative overflow-hidden"><button class="btn-secondary text-sm"><i class="fa-solid fa-upload mr-2"></i>Import Excel</button><input type="file" id="import-file" accept=".xlsx, .xls" onchange="handleImport(this)" class="absolute inset-0 opacity-0 cursor-pointer"></div><button onclick="openItemModal()" class="btn-primary text-sm"><i class="fa-solid fa-plus mr-2"></i>เพิ่มเดี่ยว</button></div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รับ</th><th class="p-4">stimeout</th><th class="p-4">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100">${items.map(item => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold text-emerald-700">${item.receiptNo}</td><td class="p-4">${item.qty}</td><td class="p-4">${item.layer}</td><td class="p-4">${formatDateTh(item.dateReceived, false)}</td><td class="p-4 text-xs">${item.disposalPref}</td><td class="p-4 space-x-2"><button onclick='openItemModal(${JSON.stringify(item)})' class="text-blue-500 hover:text-blue-700"><i class="fa-solid fa-edit"></i></button><button onclick="deleteItem('${item.id}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div></div>
+                `;
+                container.innerHTML = html;
+
+            } else if (viewName === 'borrow') {
+                const availableItems = items.filter(i => i.status === 'Available');
+                const borrowedByMe = items.filter(i => i.status === 'Borrowed' && i.holder === currentUser.username);
+                html = `
+                    <h2 class="text-2xl font-bold mb-6 text-slate-800">ระบบเบิก-คืน ตัวอย่าง</h2>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="bg-white p-6 rounded-xl shadow-sm h-[600px] flex flex-col"><h3 class="text-lg font-bold mb-4 text-emerald-700 border-b pb-2">เบิกตัวอย่าง (ค้นหา)</h3><div class="mb-4"><input type="text" id="borrow-search-input" onkeyup="filterBorrowList()" placeholder="พิมพ์เลขรับ หรือ ชั้นเก็บ..." class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div><div class="flex-1 overflow-y-auto pr-2"><table class="w-full text-sm text-left"><thead class="sticky top-0 bg-white shadow-sm"><tr class="text-gray-500"><th class="pb-2">เลขรับ</th><th class="pb-2">ชั้น</th><th class="pb-2 text-right">เลือก</th></tr></thead><tbody id="borrow-list-body">${availableItems.length === 0 ? '<tr><td colspan="3" class="text-center py-4 text-gray-400">ไม่มีตัวอย่างให้เบิก</td></tr>' : availableItems.map(i => `<tr class="borrow-item-row border-b hover:bg-gray-50"><td class="py-3 font-bold text-gray-700">${i.receiptNo}</td><td class="py-3 text-gray-500">${i.layer}</td><td class="py-3 text-right"><button onclick="processTransaction('borrow', '${i.id}')" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1 rounded text-xs font-bold transition-colors">เบิก</button></td></tr>`).join('')}</tbody></table></div></div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm h-fit"><h3 class="text-lg font-bold mb-4 text-blue-700 border-b pb-2">คืนตัวอย่างของฉัน</h3><div class="overflow-y-auto max-h-[500px]"><table class="w-full text-sm text-left"><thead><tr class="text-gray-500"><th class="pb-2">เลขรับ</th><th class="pb-2 text-right">คืน</th></tr></thead><tbody>${borrowedByMe.length === 0 ? '<tr><td colspan="2" class="text-center py-4 text-gray-400">ไม่มีรายการค้างส่งคืน</td></tr>' : borrowedByMe.map(i => `<tr class="border-b hover:bg-gray-50"><td class="py-3 font-bold text-gray-700">${i.receiptNo}</td><td class="py-3 text-right"><button onclick="processTransaction('return', '${i.id}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded text-xs font-bold transition-colors">คืน</button></td></tr>`).join('')}</tbody></table></div></div>
+                    </div>
+                `;
+                container.innerHTML = html;
+
+            } else if (viewName === 'history') {
+                html = `
+                    <div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-slate-800">ประวัติการใช้งาน</h2><div class="flex space-x-2"><button onclick="exportXLSX()" class="btn-success"><i class="fa-solid fa-file-excel mr-2"></i>Export Excel</button><button onclick="exportPDF()" class="btn-secondary"><i class="fa-solid fa-file-pdf mr-2"></i>Export PDF</button></div></div>
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table id="history-table" class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4">เวลา</th><th class="p-4">รายการ</th><th class="p-4">เลขรับตัวอย่าง</th><th class="p-4">ผู้ดำเนินการ</th><th class="p-4">หมายเหตุ</th></tr></thead><tbody class="divide-y divide-gray-100">${events.map(e => `<tr class="hover:bg-gray-50"><td class="p-4 whitespace-nowrap">${formatDateTh(e.date)}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs ${e.type === 'Borrow' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}">${e.type === 'Borrow' ? 'เบิกออก' : 'นำคืน'}</span></td><td class="p-4 font-mono">${e.itemName}</td><td class="p-4">${e.user}</td><td class="p-4 text-gray-400">${e.note || '-'}</td></tr>`).join('')}</tbody></table></div></div>
+                `;
+                container.innerHTML = html;
+            } else if (viewName === 'profile') {
+                html = `
+                     <h2 class="text-2xl font-bold mb-6 text-slate-800">ข้อมูลส่วนตัว</h2>
+                     <div class="bg-white max-w-lg p-6 rounded-xl shadow-sm">
+                        <form onsubmit="handleProfileUpdate(event)" class="space-y-4">
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Username (แก้ไขไม่ได้)</label><input type="text" value="${currentUser.username}" disabled class="w-full p-2 bg-gray-100 border rounded-lg text-gray-500"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล</label><input type="text" id="edit-name" value="${currentUser.name}" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div>
+                             <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">กลุ่มงาน</label>
+                                <select id="edit-group" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"><option value="เคมีดิน" ${currentUser.group === 'เคมีดิน' ? 'selected' : ''}>เคมีดิน</option><option value="วิเคราะห์ดิน" ${currentUser.group === 'วิเคราะห์ดิน' ? 'selected' : ''}>วิเคราะห์ดิน</option><option value="ปฐพีวิทยา" ${currentUser.group === 'ปฐพีวิทยา' ? 'selected' : ''}>ปฐพีวิทยา</option><option value="อื่นๆ" ${currentUser.group === 'อื่นๆ' ? 'selected' : ''}>อื่นๆ</option></select>
+                            </div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่านใหม่ (ว่างไว้ถ้าไม่เปลี่ยน)</label><input type="password" id="edit-pass" placeholder="New Password" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div>
+                            <button type="submit" class="btn-primary w-full">บันทึกการเปลี่ยนแปลง</button>
+                        </form>
+                     </div>
+                `;
+                container.innerHTML = html;
+            }
+        }
+
+        // --- NEW ACTION HANDLERS ---
+        async function handleReportItem(id) {
+            if(!confirm('ยืนยันว่าได้รายงานผลตัวอย่างนี้แล้ว?')) return;
+            const res = await apiCall('reportItem', { id: id, date: new Date().toISOString() });
+            if(res.status === 'success') { alert('บันทึกการรายงานผลเรียบร้อย'); await refreshData(); router('report'); } else { alert(res.message); }
+        }
+
+        async function handleDisposeItem(id, pref) {
+            if(!confirm(`ยืนยันการดำเนินการ (${pref === 'รับคืน' ? 'คืนเจ้าของ' : 'ทิ้ง'}) เรียบร้อยแล้ว?`)) return;
+            const res = await apiCall('disposeItem', { id: id });
+            if(res.status === 'success') { alert('บันทึกการดำเนินการเรียบร้อย'); await refreshData(); router('dispose'); } else { alert(res.message); }
+        }
+
+        function filterBorrowList() {
+            const input = document.getElementById('borrow-search-input');
+            const filter = input.value.toLowerCase();
+            const rows = document.getElementsByClassName('borrow-item-row');
+            for (let i = 0; i < rows.length; i++) {
+                const text = rows[i].textContent || rows[i].innerText;
+                if (text.toLowerCase().indexOf(filter) > -1) rows[i].style.display = ""; else rows[i].style.display = "none";
+            }
+        }
+
+        function filterTable(inputId, tableId) {
+            const input = document.getElementById(inputId);
+            const filter = input.value.toLowerCase();
+            const table = document.getElementById(tableId);
+            const tr = table.getElementsByTagName("tr");
+            for (let i = 1; i < tr.length; i++) { 
+                const tdArr = tr[i].getElementsByTagName("td");
+                let found = false;
+                for(let j=0; j<tdArr.length; j++) {
+                    if (tdArr[j]) { if (tdArr[j].textContent.toLowerCase().indexOf(filter) > -1) { found = true; break; } }
+                }
+                tr[i].style.display = found ? "" : "none";
+            }
+        }
+
+        function downloadTemplate() {
+            const wb = XLSX.utils.book_new();
+            const ws_data = [
+                ["เลขรับ", "จำนวนตัวอย่าง", "วันที่รับ", "ชั้นวาง", "พารามิเตอร์", "stimeout"],
+                ["S-67001", 1, "2024-01-20", "A1", "pH, EC", "รับคืน"],
+                ["S-67002", 5, "2024-01-20", "B2", "N, P, K", "ทิ้ง"]
+            ];
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            XLSX.utils.book_append_sheet(wb, ws, "Template");
+            XLSX.writeFile(wb, "Soil_Sample_Template.xlsx");
+        }
+        
+        function exportXLSX() {
+            const wb = XLSX.utils.book_new();
+            const ws_data = events.map(e => ({ "เวลา": formatDateForPDF(e.date), "ประเภทรายการ": e.type === 'Borrow' ? 'เบิกออก' : 'นำคืน', "เลขรับตัวอย่าง": e.itemName, "ผู้ดำเนินการ": e.user, "หมายเหตุ": e.note }));
+            const ws = XLSX.utils.json_to_sheet(ws_data);
+            XLSX.utils.book_append_sheet(wb, ws, "History");
+            XLSX.writeFile(wb, "History_Report.xlsx");
+        }
+
+        function exportDisposeXLSX() {
+            const now = new Date();
+            const overdueItems = items.filter(i => {
+                if (!i.dateReported || i.disposalStatus === 'Completed') return false;
+                return calculateDaysRemaining(i.dateReported) >= 60;
+            });
+            const wb = XLSX.utils.book_new();
+            const ws_data = overdueItems.map(i => ({ "เลขรับ": i.receiptNo, "วันที่รายงานผล": formatDateForPDF(i.dateReported), "เกินกำหนด(วัน)": calculateDaysRemaining(i.dateReported), "ความต้องการ(stimeout)": i.disposalPref }));
+            const ws = XLSX.utils.json_to_sheet(ws_data);
+            XLSX.utils.book_append_sheet(wb, ws, "Disposal_List");
+            XLSX.writeFile(wb, "Disposal_List.xlsx");
+        }
+
+        function exportDisposePDF() {
+            const now = new Date();
+            const overdueItems = items.filter(i => {
+                if (!i.dateReported || i.disposalStatus === 'Completed') return false;
+                return calculateDaysRemaining(i.dateReported) >= 60;
+            });
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("Disposal List Report", 14, 20);
+            doc.setFontSize(10);
+            doc.text(`Generated on ${formatDateForPDF(new Date().toISOString())}`, 14, 30);
+            
+            const tableColumn = ["Sample No", "Report Date", "Overdue (Days)", "Pref"];
+            const tableRows = overdueItems.map(i => [i.receiptNo, formatDateForPDF(i.dateReported), calculateDaysRemaining(i.dateReported), i.disposalPref === 'รับคืน' ? 'Return' : 'Discard']);
+            
+            doc.autoTable({ head: [tableColumn], body: tableRows, startY: 40 });
+            doc.save("disposal-report.pdf");
+        }
+
+        async function handleImport(input) {
+            const file = input.files[0];
+            if (!file) return;
+            if(!confirm("ยืนยันการนำเข้าข้อมูล?")) { input.value = ''; return; }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                if (jsonData.length === 0) { alert("ไม่พบข้อมูลในไฟล์"); return; }
+                const loader = document.getElementById('loading-overlay');
+                const loaderText = document.getElementById('loading-text');
+                loader.classList.remove('hidden');
+                let successCount = 0; let failCount = 0;
+
+                for (let i = 0; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    loaderText.textContent = `กำลังนำเข้า ${i + 1}/${jsonData.length}...`;
+                    const receiptNo = row['เลขรับ'] || row['receiptNo'];
+                    if(!receiptNo) continue;
+
+                    const newItem = {
+                        receiptNo: receiptNo,
+                        qty: row['จำนวนตัวอย่าง'] || row['qty'] || 1,
+                        dateReceived: row['วันที่รับ'] || row['dateReceived'] || new Date().toISOString().split('T')[0],
+                        layer: row['ชั้นวาง'] || row['layer'] || '-',
+                        params: row['พารามิเตอร์'] || row['params'] || '-',
+                        disposalPref: row['stimeout'] || row['DisposalPref'] || 'ทิ้ง'
+                    };
+                    try { const res = await apiCall('addItem', { item: newItem }); if(res.status === 'success') successCount++; else failCount++; } catch (err) { failCount++; }
+                }
+                loader.classList.add('hidden'); input.value = ''; alert(`นำเข้าเสร็จสิ้น: สำเร็จ ${successCount} รายการ, ล้มเหลว ${failCount} รายการ`); await refreshData(); router('items');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function openItemModal(item = null) {
+            const isEdit = !!item;
+            const modalHtml = `
+                <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 animate-[fadeIn_0.2s_ease-out]">
+                        <h3 class="text-xl font-bold mb-4">${isEdit ? 'แก้ไขตัวอย่าง' : 'เพิ่มตัวอย่างใหม่'}</h3>
+                        <form onsubmit="handleSaveItem(event, '${isEdit ? item.id : ''}')" class="space-y-3">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div><label class="block text-xs font-bold text-gray-600">เลขรับ</label><input type="text" id="m-receipt" value="${item?.receiptNo || ''}" class="w-full p-2 border rounded" required></div>
+                                <div><label class="block text-xs font-bold text-gray-600">วันที่รับ</label><input type="date" id="m-date" value="${item?.dateReceived || ''}" class="w-full p-2 border rounded" required></div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div><label class="block text-xs font-bold text-gray-600">จำนวน</label><input type="number" id="m-qty" value="${item?.qty || 1}" class="w-full p-2 border rounded" required></div>
+                                <div><label class="block text-xs font-bold text-gray-600">ชั้นเก็บ</label><input type="text" id="m-layer" value="${item?.layer || ''}" class="w-full p-2 border rounded" placeholder="เช่น A1"></div>
+                            </div>
+                            <div><label class="block text-xs font-bold text-gray-600">พารามิเตอร์วิเคราะห์</label><input type="text" id="m-params" value="${item?.params || ''}" class="w-full p-2 border rounded" placeholder="เช่น pH, EC, N, P, K"></div>
+                            <div><label class="block text-xs font-bold text-gray-600">ความต้องการหลังวิเคราะห์ (stimeout)</label>
+                                <select id="m-pref" class="w-full p-2 border rounded">
+                                    <option value="ทิ้ง" ${item?.disposalPref === 'ทิ้ง' ? 'selected' : ''}>ทิ้ง</option>
+                                    <option value="รับคืน" ${item?.disposalPref === 'รับคืน' ? 'selected' : ''}>รับคืน</option>
+                                </select>
+                            </div>
+                            <div class="flex justify-end space-x-2 mt-4 pt-4 border-t">
+                                <button type="button" onclick="document.getElementById('modal-container').innerHTML=''" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">ยกเลิก</button>
+                                <button type="submit" class="btn-primary">บันทึก</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modal-container').innerHTML = modalHtml;
+        }
+
+        async function handleSaveItem(e, id) {
+            e.preventDefault();
+            const newItem = {
+                id: id,
+                receiptNo: document.getElementById('m-receipt').value,
+                dateReceived: document.getElementById('m-date').value,
+                qty: document.getElementById('m-qty').value,
+                layer: document.getElementById('m-layer').value,
+                params: document.getElementById('m-params').value,
+                disposalPref: document.getElementById('m-pref').value
+            };
+            const action = id ? 'editItem' : 'addItem';
+            const res = await apiCall(action, { item: newItem });
+            if (res.status === 'success') { document.getElementById('modal-container').innerHTML = ''; await refreshData(); router('items'); } else { alert(res.message); }
+        }
+
+        async function deleteItem(id) {
+            if (!confirm('ยืนยันที่จะลบรายการนี้?')) return;
+            const res = await apiCall('deleteItem', { id });
+            if (res.status === 'success') { await refreshData(); router('items'); }
+        }
+
+        async function processTransaction(type, itemId) {
+            if (!itemId) return alert('รหัสสินค้าไม่ถูกต้อง');
+            const action = type === 'borrow' ? 'borrowItem' : 'returnItem';
+            const res = await apiCall(action, { itemId: itemId, username: currentUser.username });
+            if (res.status === 'success') { alert(type === 'borrow' ? 'เบิกสำเร็จ' : 'คืนสำเร็จ'); await refreshData(); router('borrow'); } else { alert(res.message); }
+        }
+        
+        async function handleProfileUpdate(e) {
+            e.preventDefault();
+            const pass = document.getElementById('edit-pass').value;
+            const updateData = { username: currentUser.username, name: document.getElementById('edit-name').value, group: document.getElementById('edit-group').value, password: pass ? pass : currentUser.password };
+            const res = await apiCall('updateProfile', updateData);
+            if(res.status === 'success') { currentUser.name = updateData.name; currentUser.group = updateData.group; if(pass) currentUser.password = pass; localStorage.setItem('soilAppUser', JSON.stringify(currentUser)); alert('แก้ไขข้อมูลสำเร็จ'); updateNavUser(); }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
