@@ -550,7 +550,8 @@
                 const wb = XLSX.utils.book_new();
                 const ws_data = events.map(e => ({ "เวลา": formatDateForPDF(e.date), "ประเภทรายการ": e.type === 'Borrow' ? 'เบิกออก' : 'นำคืน', "เลขรับตัวอย่าง": e.itemName, "ผู้ดำเนินการ": e.user, "หมายเหตุ": e.note }));
                 const ws = XLSX.utils.json_to_sheet(ws_data);
-                XLSX.utils.book_append_sheet(wb, ws, "History");
+                // Changed from "History" to "Report" to avoid reserved name error
+                XLSX.utils.book_append_sheet(wb, ws, "Report");
                 XLSX.writeFile(wb, "History_Report.xlsx");
             } catch (err) {
                 console.error(err);
