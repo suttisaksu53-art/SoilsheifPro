@@ -35,6 +35,16 @@
 
         .nav-item.active { background-color: #059669; color: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         
+        /* Highlight Borrow Menu */
+        .nav-item-highlight {
+            background-color: #fffbeb; /* amber-50 */
+            color: #92400e; /* amber-800 */
+            border: 1px solid #fcd34d; /* amber-300 */
+            font-weight: bold;
+        }
+        .nav-item-highlight:hover { background-color: #fef3c7; }
+        .nav-item-highlight.active { background-color: #d97706; color: white; border-color: #b45309; }
+
         /* Toggle Switch */
         .toggle-checkbox:checked { right: 0; border-color: #10b981; }
         .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
@@ -83,13 +93,8 @@
 
         <div id="content-area" class="flex-1 overflow-y-auto p-4 md:p-8 relative"></div>
         <div id="status-badge" class="status-badge status-demo hidden"><i class="fa-solid fa-circle-info"></i><span id="status-text">โหมดจำลอง</span></div>
-        
-        <!-- Loading Overlay -->
         <div id="loading-overlay" class="fixed inset-0 bg-white/90 z-[200] flex items-center justify-center hidden">
-            <div class="text-center">
-                <i class="fa-solid fa-spinner fa-spin text-5xl text-emerald-600 mb-4"></i>
-                <p class="text-emerald-800 font-bold text-lg animate-pulse" id="loading-text">กำลังโหลดข้อมูล...</p>
-            </div>
+            <div class="text-center"><i class="fa-solid fa-spinner fa-spin text-5xl text-emerald-600 mb-4"></i><p class="text-emerald-800 font-bold text-lg animate-pulse" id="loading-text">กำลังโหลดข้อมูล...</p></div>
         </div>
     </main>
 
@@ -117,17 +122,10 @@
                 </form>
                 <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ใช้</label><input type="text" id="reg-user" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-                    
-                    <!-- Password Field -->
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label><input type="password" id="reg-pass" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-                    
-                    <!-- Confirm Password Field -->
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">ยืนยันรหัสผ่าน</label><input type="password" id="reg-pass-confirm" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-                    
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล</label><input type="text" id="reg-name" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">กลุ่มที่สังกัด</label>
-                        <select id="reg-group" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">กลุ่มที่สังกัด</label><select id="reg-group" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
                             <option value="ฝ่ายบริหารทั่วไป">ฝ่ายบริหารทั่วไป</option>
                             <option value="กลุ่มวิจัยเคมีดิน">กลุ่มวิจัยเคมีดิน</option>
                             <option value="กลุ่มวิจัยกายภาพดิน">กลุ่มวิจัยกายภาพดิน</option>
@@ -136,8 +134,7 @@
                             <option value="กลุ่มวิจัยแร่และจุลสัณฐานดิน">กลุ่มวิจัยแร่และจุลสัณฐานดิน</option>
                             <option value="กลุ่มมาตรฐานและพัฒนาระบบการวิเคราะห์">กลุ่มมาตรฐานและพัฒนาระบบการวิเคราะห์</option>
                             <option value="กลุ่มวิทยบริการ">กลุ่มวิทยบริการ</option>
-                        </select>
-                    </div>
+                    </select></div>
                     <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg transition-colors">ลงทะเบียน</button>
                 </form>
             </div>
@@ -148,16 +145,7 @@
         const MOCK_DELAY = 250;
         const HARDCODED_API_URL = "https://script.google.com/macros/s/AKfycbzb3O1kWnyJtD7jPor_rfnJOrD9df1Jzjb66QtBXeIzgyKZHXRq8FramTk6RGptFCRKLQ/exec";
         
-        const DEPARTMENTS = [
-            "ฝ่ายบริหารทั่วไป",
-            "กลุ่มวิจัยเคมีดิน",
-            "กลุ่มวิจัยกายภาพดิน",
-            "กลุ่มวิจัยสิ่งแวดล้อม",
-            "กลุ่มวิเคราะห์ วิจัย พืช ปุ๋ย และสิ่งปรับปรุงดิน",
-            "กลุ่มวิจัยแร่และจุลสัณฐานดิน",
-            "กลุ่มมาตรฐานและพัฒนาระบบการวิเคราะห์",
-            "กลุ่มวิทยบริการ"
-        ];
+        const DEPARTMENTS = [ "ฝ่ายบริหารทั่วไป", "กลุ่มวิจัยเคมีดิน", "กลุ่มวิจัยกายภาพดิน", "กลุ่มวิจัยสิ่งแวดล้อม", "กลุ่มวิเคราะห์ วิจัย พืช ปุ๋ย และสิ่งปรับปรุงดิน", "กลุ่มวิจัยแร่และจุลสัณฐานดิน", "กลุ่มมาตรฐานและพัฒนาระบบการวิเคราะห์", "กลุ่มวิทยบริการ" ];
 
         let currentUser = null;
         let items = [];
@@ -174,7 +162,7 @@
             { id: '2', receiptNo: 'S-66002', qty: 2, dateReceived: '2023-10-05', layer: 'B2', params: 'N, P, K', status: 'Borrowed', holder: 'admin', disposalPref: 'ทิ้ง', dateReported: '2023-11-01', disposalStatus: 'Completed' }
         ];
         const mockEvents = [];
-        const mockUsers = [{ username: 'admin', password: 'admin123', name: 'Admin System', group: 'IT Support', status: 'Approved', canReport: true }];
+        const mockUsers = [{ username: 'admin', password: 'admin123', name: 'Admin System', group: 'IT Support', status: 'Approved', canReport: true, canManage: true, canDispose: true }];
 
         function init() {
             const storedUser = localStorage.getItem('soilAppUser');
@@ -187,9 +175,7 @@
                     currentUser = JSON.parse(storedUser);
                     document.getElementById('login-screen').classList.add('hidden');
                     updateNavAndRedirect();
-                } catch(e) {
-                    localStorage.removeItem('soilAppUser'); 
-                }
+                } catch(e) { localStorage.removeItem('soilAppUser'); }
             }
         }
 
@@ -208,19 +194,15 @@
             const remember = document.getElementById('remember-me').checked;
             
             showLoading("กำลังตรวจสอบข้อมูล...");
-            
             try {
                 const res = await apiCall('login', { username: user, password: pass }, false); 
-                
                 if (res.status === 'success') {
                     showLoading("กำลังเข้าสู่ระบบ...");
                     currentUser = res.user;
                     if (remember) localStorage.setItem('soilAppUser', JSON.stringify(currentUser));
                     document.getElementById('login-screen').classList.add('hidden');
-                    
                     renderSidebar();
                     updateNavUser();
-                    
                     showLoading("กำลังดาวน์โหลดข้อมูลล่าสุด...");
                     await refreshData();
                     router('dashboard');
@@ -230,94 +212,66 @@
                     errorDiv.querySelector('span').textContent = res.message || "เกิดข้อผิดพลาดในการเข้าสู่ระบบ";
                     errorDiv.classList.remove('hidden');
                 }
-            } catch (err) {
-                hideLoading();
-                alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message);
-            }
+            } catch (err) { hideLoading(); alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message); }
         }
 
         async function handleRegister(e) {
             e.preventDefault();
             const pass = document.getElementById('reg-pass').value;
             const passConfirm = document.getElementById('reg-pass-confirm').value;
-
-            if (pass !== passConfirm) {
-                alert("รหัสผ่านไม่ตรงกัน กรุณาตรวจสอบอีกครั้ง");
-                return;
-            }
-
-            const payload = { 
-                username: document.getElementById('reg-user').value, 
-                password: pass, 
-                name: document.getElementById('reg-name').value, 
-                group: document.getElementById('reg-group').value 
-            };
-            
+            if (pass !== passConfirm) { alert("รหัสผ่านไม่ตรงกัน กรุณาตรวจสอบอีกครั้ง"); return; }
+            const payload = { username: document.getElementById('reg-user').value, password: pass, name: document.getElementById('reg-name').value, group: document.getElementById('reg-group').value };
             showLoading("กำลังลงทะเบียน...");
             const res = await apiCall('register', payload, false); 
             hideLoading();
-
-            if (res.status === 'success') { 
-                alert('ลงทะเบียนสำเร็จ! โปรดแจ้ง Admin เพื่อทำการอนุมัติสิทธิ์ก่อนเริ่มใช้งาน'); 
-                showLoginTab('login'); 
-            } else { 
-                alert(res.message); 
-            }
+            if (res.status === 'success') { alert('ลงทะเบียนสำเร็จ! โปรดแจ้ง Admin เพื่อทำการอนุมัติสิทธิ์ก่อนเริ่มใช้งาน'); showLoginTab('login'); } else { alert(res.message); }
         }
 
         function logout() { localStorage.removeItem('soilAppUser'); location.reload(); }
-        
         function showLoginTab(tab) {
             document.getElementById('login-error-msg').classList.add('hidden');
             if (tab === 'login') { document.getElementById('login-form').classList.remove('hidden'); document.getElementById('register-form').classList.add('hidden'); document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; } 
             else { document.getElementById('login-form').classList.add('hidden'); document.getElementById('register-form').classList.remove('hidden'); document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; }
         }
-        
-        function updateNavUser() { 
-            if(currentUser) document.getElementById('nav-username').textContent = currentUser.name; 
-        }
+        function updateNavUser() { if(currentUser) document.getElementById('nav-username').textContent = currentUser.name; }
+        function getUserInfo(username) { if (username === 'admin') return { name: 'Admin System', group: 'IT Support' }; const u = userList.find(user => user.username === username); return u ? { name: u.name, group: u.group } : { name: username, group: '-' }; }
 
         function renderSidebar() {
             const nav = document.getElementById('nav-container');
             if (!currentUser) return;
             const isAdmin = currentUser.username === 'admin';
-            const canReport = isAdmin || currentUser.canReport === true;
             
             let html = `
                 <button id="nav-dashboard" onclick="router('dashboard')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors">
                     <i class="fa-solid fa-chart-pie w-6"></i> <span>แดชบอร์ด</span>
                 </button>
+                <button id="nav-borrow" onclick="router('borrow')" class="nav-item-highlight w-full text-left px-4 py-3 rounded-lg flex items-center space-x-3 transition-colors shadow-sm mb-2">
+                    <i class="fa-solid fa-hand-holding w-6"></i> <span>เบิก-คืน ตัวอย่าง</span>
+                </button>
                 <button id="nav-status" onclick="router('status')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors">
                     <i class="fa-solid fa-list-check w-6"></i> <span>สถานะตัวอย่างทั้งหมด</span>
                 </button>
-            `;
-
-            if (canReport) {
-                html += `
                 <button id="nav-report" onclick="router('report')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-blue-300">
                     <i class="fa-solid fa-clipboard-check w-6"></i> <span>รายงานผล</span>
-                </button>
-                `;
-            }
-
-            if (isAdmin) {
-                html += `
-                <button id="nav-users" onclick="router('users')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-purple-300">
-                    <i class="fa-solid fa-users-gear w-6"></i> <span>จัดการผู้ใช้งาน</span>
                 </button>
                 <button id="nav-dispose" onclick="router('dispose')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-orange-300">
                     <i class="fa-solid fa-trash-can-arrow-up w-6"></i> <span>จำหน่ายตัวอย่าง</span>
                 </button>
                 <button id="nav-items" onclick="router('items')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-emerald-300">
-                    <i class="fa-solid fa-box-archive w-6"></i> <span>จัดการตัวอย่างดิน (Admin)</span>
+                    <i class="fa-solid fa-box-archive w-6"></i> <span>จัดการตัวอย่างดิน</span>
+                </button>
+            `;
+
+            if (isAdmin) {
+                html += `
+                <div class="my-2 border-t border-slate-600"></div>
+                <button id="nav-users" onclick="router('users')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-purple-300">
+                    <i class="fa-solid fa-users-gear w-6"></i> <span>จัดการผู้ใช้งาน (Admin)</span>
                 </button>
                 `;
             }
 
             html += `
-                <button id="nav-borrow" onclick="router('borrow')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors">
-                    <i class="fa-solid fa-hand-holding w-6"></i> <span>เบิก-คืน ตัวอย่าง</span>
-                </button>
                 <button id="nav-history" onclick="router('history')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors">
                     <i class="fa-solid fa-clock-rotate-left w-6"></i> <span>ประวัติ & รายงาน</span>
                 </button>
@@ -325,18 +279,10 @@
             nav.innerHTML = html;
         }
 
-        // --- HELPER: Get User Info ---
-        function getUserInfo(username) {
-            if (username === 'admin') return { name: 'Admin System', group: 'IT Support' };
-            const u = userList.find(user => user.username === username);
-            return u ? { name: u.name, group: u.group } : { name: username, group: '-' };
-        }
-
-        // --- VIEWS ---
         async function router(viewName) {
             currentView = viewName; 
             const container = document.getElementById('content-area');
-            document.querySelectorAll('.nav-item').forEach(el => { el.classList.remove('active'); el.classList.remove('bg-emerald-600'); });
+            document.querySelectorAll('.nav-item, .nav-item-highlight').forEach(el => { el.classList.remove('active'); el.classList.remove('bg-emerald-600'); });
             const activeNav = document.getElementById(`nav-${viewName}`);
             if(activeNav) activeNav.classList.add('active');
 
@@ -347,7 +293,6 @@
                 const totalQty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
                 const borrowed = items.filter(i => i.status === 'Borrowed').length;
                 const available = totalReceipts - borrowed;
-
                 html = `
                     <h2 class="text-2xl font-bold mb-6 text-slate-800">แดชบอร์ดภาพรวม</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -363,34 +308,47 @@
 
             } else if (viewName === 'users') {
                 if (currentUser.username !== 'admin') { container.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</div>`; return; }
-                // users are refreshed in refreshData now, no need to call API here unless needed
+                const res = await apiCall('getUsers');
+                if(res.status === 'success') userList = res.users;
                 html = `
                     <h2 class="text-2xl font-bold mb-6 text-purple-700">จัดการผู้ใช้งาน (Admin)</h2>
-                    <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm"><thead class="bg-purple-50 text-purple-800 font-semibold border-b"><tr><th class="p-4">Username</th><th class="p-4">ชื่อ</th><th class="p-4">กลุ่ม</th><th class="p-4">สถานะ</th><th class="p-4 text-center">สิทธิ์รายงานผล</th><th class="p-4 text-center">จัดการ</th></tr></thead>
-                        <tbody class="divide-y divide-gray-100">${userList.map(u => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${u.username}</td><td class="p-4">${u.name}</td><td class="p-4 text-gray-500">${u.group}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-bold ${u.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${u.status === 'Approved' ? 'อนุมัติแล้ว' : 'รออนุมัติ'}</span></td><td class="p-4 text-center"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" onchange="toggleUserReport('${u.username}', this.checked)" class="sr-only peer" ${u.canReport ? 'checked' : ''}><div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label></td><td class="p-4 text-center space-x-2">${u.status === 'Pending' ? `<button onclick="approveUser('${u.username}')" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded text-xs font-bold hover:bg-emerald-200">อนุมัติ</button>` : ''}<button onclick="deleteUser('${u.username}')" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}</tbody></table>
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-purple-50 text-purple-800 font-semibold border-b">
+                        <tr><th class="p-4">Username</th><th class="p-4">ชื่อ</th><th class="p-4">กลุ่ม</th><th class="p-4">สถานะ</th><th class="p-4 text-center">สิทธิ์รายงานผล</th><th class="p-4 text-center">สิทธิ์จัดการข้อมูล</th><th class="p-4 text-center">สิทธิ์จำหน่าย</th><th class="p-4 text-center">จัดการ</th></tr></thead>
+                        <tbody class="divide-y divide-gray-100">${userList.map(u => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${u.username}</td><td class="p-4">${u.name}</td><td class="p-4 text-gray-500">${u.group}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-bold ${u.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${u.status === 'Approved' ? 'อนุมัติแล้ว' : 'รออนุมัติ'}</span></td>
+                        <td class="p-4 text-center"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" onchange="toggleUserPermission('${u.username}', 'report', this.checked)" class="sr-only peer" ${u.canReport ? 'checked' : ''}><div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div></label></td>
+                        <td class="p-4 text-center"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" onchange="toggleUserPermission('${u.username}', 'manage', this.checked)" class="sr-only peer" ${u.canManage ? 'checked' : ''}><div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div></label></td>
+                        <td class="p-4 text-center"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" onchange="toggleUserPermission('${u.username}', 'dispose', this.checked)" class="sr-only peer" ${u.canDispose ? 'checked' : ''}><div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-600"></div></label></td>
+                        <td class="p-4 text-center space-x-2">${u.status === 'Pending' ? `<button onclick="approveUser('${u.username}')" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded text-xs font-bold hover:bg-emerald-200">อนุมัติ</button>` : ''}<button onclick="deleteUser('${u.username}')" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}</tbody></table>
                     </div></div>
                 `;
                 container.innerHTML = html;
 
             } else if (viewName === 'report') {
                 const pendingReport = items.filter(i => !i.dateReported);
+                // Check Permission for Action
+                const canAct = currentUser.username === 'admin' || currentUser.canReport === true;
+                
                 html = `
                     <h2 class="text-2xl font-bold mb-6 text-blue-700">รายงานผลการวิเคราะห์</h2>
                     <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto">
                         <table class="w-full text-left text-sm"><thead class="bg-blue-50 text-blue-800 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">วันที่รับ</th><th class="p-4">พารามิเตอร์</th><th class="p-4 text-center">จัดการ</th></tr></thead>
-                        <tbody class="divide-y divide-gray-100">${pendingReport.length === 0 ? '<tr><td colspan="4" class="p-6 text-center text-gray-400">ไม่มีรายการรอรายงานผล</td></tr>' : pendingReport.map(item => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${formatDateTh(item.dateReceived, false)}</td><td class="p-4 text-xs">${item.params}</td><td class="p-4 text-center"><button onclick="openReportDateModal('${item.id}', '${item.receiptNo}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow-sm text-sm transition-colors">ยืนยันรายงานผล</button></td></tr>`).join('')}</tbody></table>
+                        <tbody class="divide-y divide-gray-100">${pendingReport.length === 0 ? '<tr><td colspan="4" class="p-6 text-center text-gray-400">ไม่มีรายการรอรายงานผล</td></tr>' : pendingReport.map(item => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${formatDateTh(item.dateReceived, false)}</td><td class="p-4 text-xs">${item.params}</td><td class="p-4 text-center">
+                            ${canAct ? `<button onclick="openReportDateModal('${item.id}', '${item.receiptNo}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow-sm text-sm transition-colors">ยืนยันรายงานผล</button>` : '<span class="text-gray-400 text-xs">ไม่มีสิทธิ์</span>'}
+                        </td></tr>`).join('')}</tbody></table>
                     </div></div>
                 `;
                 container.innerHTML = html;
 
             } else if (viewName === 'dispose') {
                 const overdueItems = items.filter(i => { if (!i.dateReported || i.disposalStatus === 'Completed') return false; return calculateDaysRemaining(i.dateReported) >= 60; });
+                // Check Permission for Action
+                const canAct = currentUser.username === 'admin' || currentUser.canDispose === true;
+
                 html = `
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold text-orange-700">จำหน่ายตัวอย่าง (ครบกำหนด 60 วัน)</h2>
                         <div class="flex space-x-2">
-                             <button onclick="deleteSelected()" id="btn-delete-selected" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md transition-all hidden flex items-center gap-2 text-sm font-medium animate-pulse"><i class="fa-solid fa-trash-can"></i> <span id="selected-count">0</span></button>
+                             ${canAct ? `<button onclick="deleteSelected()" id="btn-delete-selected" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md transition-all hidden flex items-center gap-2 text-sm font-medium animate-pulse"><i class="fa-solid fa-trash-can"></i> <span id="selected-count">0</span></button>` : ''}
                              <button onclick="exportDisposeXLSX()" class="btn-success text-sm"><i class="fa-solid fa-file-excel mr-2"></i>Export Excel</button>
                              <button onclick="exportDisposePDF()" class="btn-secondary text-sm"><i class="fa-solid fa-file-pdf mr-2"></i>Export PDF</button>
                         </div>
@@ -398,19 +356,21 @@
                     <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto">
                         <table class="w-full text-left text-sm"><thead class="bg-orange-50 text-orange-800 font-semibold border-b">
                             <tr>
-                                <th class="p-4 w-10"><input type="checkbox" onchange="toggleAllItems(this)"></th>
+                                <th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this)">' : ''}</th>
                                 <th class="p-4">เลขรับ</th><th class="p-4">วันที่รายงานผล</th><th class="p-4">เกินกำหนด (วัน)</th><th class="p-4">ความต้องการ</th><th class="p-4 text-center">จัดการ</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">${overdueItems.length === 0 ? '<tr><td colspan="6" class="p-6 text-center text-gray-400">ไม่มีรายการครบกำหนดจำหน่าย</td></tr>' : overdueItems.map(item => { const days = calculateDaysRemaining(item.dateReported); return `<tr class="hover:bg-gray-50">
-                            <td class="p-4"><input type="checkbox" class="item-checkbox" value="${item.id}" onchange="checkSelection()"></td>
+                            <td class="p-4">${canAct ? `<input type="checkbox" class="item-checkbox" value="${item.id}" onchange="checkSelection()">` : ''}</td>
                             <td class="p-4 font-bold">${item.receiptNo}</td>
                             <td class="p-4">${formatDateTh(item.dateReported, false)}</td>
                             <td class="p-4 text-red-600 font-bold">${days} วัน</td>
                             <td class="p-4"><span class="px-2 py-1 rounded text-xs font-bold ${item.disposalPref === 'รับคืน' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-800'}">${item.disposalPref}</span></td>
                             <td class="p-4 text-center space-x-2">
+                                ${canAct ? `
                                 <button onclick="handleDisposeItem('${item.id}', '${item.disposalPref}')" class="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded shadow-sm text-xs transition-colors">ดำเนินการ</button>
                                 <button onclick="deleteItem('${item.id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded shadow-sm text-xs transition-colors" title="ลบข้อมูล"><i class="fa-solid fa-trash-can"></i></button>
+                                ` : '<span class="text-gray-400 text-xs">ไม่มีสิทธิ์</span>'}
                             </td>
                         </tr>` }).join('')}</tbody></table>
                     </div></div>
@@ -425,16 +385,20 @@
                 `;
                 container.innerHTML = html;
             } else if (viewName === 'items') {
-                if (currentUser.username !== 'admin') { container.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</div>`; return; }
+                // Check Permission for Action
+                const canAct = currentUser.username === 'admin' || currentUser.canManage === true;
+
                 html = `
                     <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                        <h2 class="text-2xl font-bold text-slate-800">จัดการตัวอย่างดิน (Admin)</h2>
+                        <h2 class="text-2xl font-bold text-slate-800">จัดการตัวอย่างดิน</h2>
                         <div class="flex flex-wrap items-center gap-3 justify-end">
                             <div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1">
                                 <button onclick="exportItemsXLSX()" class="px-3 py-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Export Excel"><i class="fa-solid fa-file-excel text-lg"></i></button>
                                 <div class="w-px bg-gray-200 my-1"></div>
                                 <button onclick="exportItemsPDF()" class="px-3 py-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Export PDF"><i class="fa-solid fa-file-pdf text-lg"></i></button>
                             </div>
+                            
+                            ${canAct ? `
                             <div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1">
                                 <button onclick="downloadTemplate()" class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="ดาวน์โหลดฟอร์ม"><i class="fa-solid fa-file-arrow-down"></i> <span class="hidden sm:inline">โหลดฟอร์ม</span></button>
                                 <div class="w-px bg-gray-200 my-1"></div>
@@ -442,11 +406,17 @@
                             </div>
                             <button onclick="openItemModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-plus"></i> <span>เพิ่มข้อมูล</span></button>
                             <button onclick="deleteSelected()" id="btn-delete-selected" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md transition-all hidden flex items-center gap-2 text-sm font-medium animate-pulse"><i class="fa-solid fa-trash-can"></i> <span id="selected-count">0</span></button>
+                            ` : ''}
                         </div>
                     </div>
                     <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm">
-                        <thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4 w-10"><input type="checkbox" onchange="toggleAllItems(this)"></th><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รับ</th><th class="p-4">stimeout</th><th class="p-4">จัดการ</th></tr></thead>
-                        <tbody class="divide-y divide-gray-100">${items.map(item => `<tr class="hover:bg-gray-50"><td class="p-4"><input type="checkbox" class="item-checkbox" value="${item.id}" onchange="checkSelection()"></td><td class="p-4 font-bold text-emerald-700">${item.receiptNo}</td><td class="p-4">${item.qty}</td><td class="p-4">${item.layer}</td><td class="p-4">${formatDateTh(item.dateReceived, false)}</td><td class="p-4 text-xs">${item.disposalPref}</td><td class="p-4 space-x-2"><button onclick='openItemModal(${JSON.stringify(item)})' class="text-blue-500 hover:text-blue-700"><i class="fa-solid fa-edit"></i></button><button onclick="deleteItem('${item.id}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div></div>
+                        <thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this)">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รับ</th><th class="p-4">การจำหน่ายตัวอย่าง</th><th class="p-4">จัดการ</th></tr></thead>
+                        <tbody class="divide-y divide-gray-100">${items.map(item => `<tr class="hover:bg-gray-50">
+                            <td class="p-4">${canAct ? `<input type="checkbox" class="item-checkbox" value="${item.id}" onchange="checkSelection()">` : ''}</td>
+                            <td class="p-4 font-bold text-emerald-700">${item.receiptNo}</td><td class="p-4">${item.qty}</td><td class="p-4">${item.layer}</td><td class="p-4">${formatDateTh(item.dateReceived, false)}</td><td class="p-4 text-xs">${item.disposalPref}</td>
+                            <td class="p-4 space-x-2">
+                                ${canAct ? `<button onclick='openItemModal(${JSON.stringify(item)})' class="text-blue-500 hover:text-blue-700"><i class="fa-solid fa-edit"></i></button><button onclick="deleteItem('${item.id}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>` : '<span class="text-gray-400 text-xs">ไม่มีสิทธิ์</span>'}
+                            </td></tr>`).join('')}</tbody></table></div></div>
                 `;
                 container.innerHTML = html;
             } else if (viewName === 'borrow') {
@@ -550,13 +520,13 @@
             hideLoading();
             alert(`ลบเสร็จสิ้น ${successCount} รายการ`);
             await refreshData();
-            router(currentView); // Reload current view (supports dispose and items)
+            router(currentView); // Redirects to current view (dispose or items)
         }
 
         function exportItemsXLSX() {
             if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; }
             const wb = XLSX.utils.book_new();
-            const ws_data = items.map(i => ({ "เลขรับ": i.receiptNo, "จำนวน": i.qty, "ชั้นเก็บ": i.layer, "วันที่รับ": formatDateTh(i.dateReceived, false), "พารามิเตอร์": i.params, "stimeout": i.disposalPref, "สถานะ": i.status }));
+            const ws_data = items.map(i => ({ "เลขรับ": i.receiptNo, "จำนวน": i.qty, "ชั้นเก็บ": i.layer, "วันที่รับ": formatDateTh(i.dateReceived, false), "พารามิเตอร์": i.params, "การจำหน่ายตัวอย่าง": i.disposalPref, "สถานะ": i.status }));
             const ws = XLSX.utils.json_to_sheet(ws_data);
             XLSX.utils.book_append_sheet(wb, ws, "SoilItems");
             XLSX.writeFile(wb, "Soil_Samples_List.xlsx");
@@ -577,7 +547,7 @@
 
         // --- EXISTING FUNCTIONS (Helper wrappers) ---
         async function approveUser(username) { if(!confirm('ยืนยันอนุมัติ?')) return; const res = await apiCall('approveUser', { username: username }); if(res.status === 'success') { alert('เรียบร้อย'); router('users'); } else { alert(res.message); } }
-        async function toggleUserReport(username, isChecked) { const res = await apiCall('toggleReportPermission', { username: username, canReport: isChecked }); if(res.status !== 'success') { alert(res.message); router('users'); } }
+        async function toggleUserPermission(username, type, isChecked) { const res = await apiCall('toggleUserPermission', { username: username, type: type, value: isChecked }); if(res.status !== 'success') { alert(res.message); router('users'); } }
         async function deleteUser(username) { if(!confirm('ยืนยันลบ?')) return; const res = await apiCall('deleteUser', { username: username }); if(res.status === 'success') { router('users'); } else { alert(res.message); } }
         function openReportDateModal(id, receiptNo) { const today = new Date().toISOString().split('T')[0]; document.getElementById('modal-container').innerHTML = `<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 animate-[fadeIn_0.2s_ease-out]"><h3 class="text-xl font-bold mb-4 text-blue-700">ยืนยันการรายงานผล</h3><p class="text-sm text-gray-600 mb-4">เลขรับ: <b>${receiptNo}</b></p><div class="mb-4"><label class="block text-sm font-bold text-gray-700 mb-1">เลือกวันที่</label><input type="date" id="report-date-picker" value="${today}" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"></div><div class="flex justify-end space-x-2 border-t pt-4"><button onclick="document.getElementById('modal-container').innerHTML=''" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">ยกเลิก</button><button onclick="confirmReport('${id}')" class="btn-primary bg-blue-600 hover:bg-blue-700">ยืนยัน</button></div></div></div>`; }
         async function confirmReport(id) { const date = document.getElementById('report-date-picker').value; if(!date) return alert("กรุณาเลือกวันที่"); document.getElementById('modal-container').innerHTML = ''; const res = await apiCall('reportItem', { id: id, date: date }); if(res.status === 'success') { alert('เรียบร้อย'); await refreshData(); router('report'); } else { alert(res.message); } }
@@ -594,7 +564,7 @@
 
         function filterBorrowList() { const input = document.getElementById('borrow-search-input'); const filter = input.value.toLowerCase(); const rows = document.getElementsByClassName('borrow-item-row'); for (let i = 0; i < rows.length; i++) { const text = rows[i].textContent || rows[i].innerText; if (text.toLowerCase().indexOf(filter) > -1) rows[i].style.display = ""; else rows[i].style.display = "none"; } }
         function filterTable(inputId, tableId) { const input = document.getElementById(inputId); const filter = input.value.toLowerCase(); const table = document.getElementById(tableId); const tr = table.getElementsByTagName("tr"); for (let i = 1; i < tr.length; i++) { const tdArr = tr[i].getElementsByTagName("td"); let found = false; for(let j=0; j<tdArr.length; j++) { if (tdArr[j]) { if (tdArr[j].textContent.toLowerCase().indexOf(filter) > -1) { found = true; break; } } } tr[i].style.display = found ? "" : "none"; } }
-        function downloadTemplate() { const wb = XLSX.utils.book_new(); const ws_data = [["เลขรับ", "จำนวนตัวอย่าง", "วันที่รับ", "ชั้นวาง", "พารามิเตอร์", "stimeout"], ["S-67001", 1, "2024-01-20", "A1", "pH, EC", "รับคืน"], ["S-67002", 5, "2024-01-20", "B2", "N, P, K", "ทิ้ง"]]; const ws = XLSX.utils.aoa_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "Template"); XLSX.writeFile(wb, "Soil_Sample_Template.xlsx"); }
+        function downloadTemplate() { const wb = XLSX.utils.book_new(); const ws_data = [["เลขรับ", "จำนวนตัวอย่าง", "วันที่รับ", "ชั้นวาง", "พารามิเตอร์", "การจำหน่ายตัวอย่าง"], ["S-67001", 1, "2024-01-20", "A1", "pH, EC", "รับคืน"], ["S-67002", 5, "2024-01-20", "B2", "N, P, K", "ทิ้ง"]]; const ws = XLSX.utils.aoa_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "Template"); XLSX.writeFile(wb, "Soil_Sample_Template.xlsx"); }
         
         function exportXLSX() { 
             if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } 
@@ -616,7 +586,7 @@
             XLSX.writeFile(wb, "History_Report.xlsx"); 
         }
         
-        function exportDisposeXLSX() { if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } const overdueItems = items.filter(i => { if (!i.dateReported || i.disposalStatus === 'Completed') return false; return calculateDaysRemaining(i.dateReported) >= 60; }); const wb = XLSX.utils.book_new(); const ws_data = overdueItems.map(i => ({ "เลขรับ": i.receiptNo, "วันที่รายงานผล": formatDateForPDF(i.dateReported), "เกินกำหนด(วัน)": calculateDaysRemaining(i.dateReported), "ความต้องการ(stimeout)": i.disposalPref })); const ws = XLSX.utils.json_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "Disposal_List"); XLSX.writeFile(wb, "Disposal_List.xlsx"); }
+        function exportDisposeXLSX() { if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } const overdueItems = items.filter(i => { if (!i.dateReported || i.disposalStatus === 'Completed') return false; return calculateDaysRemaining(i.dateReported) >= 60; }); const wb = XLSX.utils.book_new(); const ws_data = overdueItems.map(i => ({ "เลขรับ": i.receiptNo, "วันที่รายงานผล": formatDateForPDF(i.dateReported), "เกินกำหนด(วัน)": calculateDaysRemaining(i.dateReported), "ความต้องการ(การจำหน่ายตัวอย่าง)": i.disposalPref })); const ws = XLSX.utils.json_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "Disposal_List"); XLSX.writeFile(wb, "Disposal_List.xlsx"); }
         function exportDisposePDF() { if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } const overdueItems = items.filter(i => { if (!i.dateReported || i.disposalStatus === 'Completed') return false; return calculateDaysRemaining(i.dateReported) >= 60; }); const { jsPDF } = window.jspdf; const doc = new jsPDF(); doc.text("Disposal List Report", 14, 20); doc.setFontSize(10); doc.text(`Generated on ${formatDateForPDF(new Date().toISOString())}`, 14, 30); const tableColumn = ["Sample No", "Report Date", "Overdue (Days)", "Pref"]; const tableRows = overdueItems.map(i => [i.receiptNo, formatDateForPDF(i.dateReported), calculateDaysRemaining(i.dateReported), i.disposalPref === 'รับคืน' ? 'Return' : 'Discard']); doc.autoTable({ head: [tableColumn], body: tableRows, startY: 40 }); doc.save("disposal-report.pdf"); }
         
         function exportPDF() { 
@@ -649,9 +619,9 @@
             } catch (err) { console.error(err); alert("Error Export PDF: " + err.message); } 
         }
         
-        async function handleImport(input) { const file = input.files[0]; if (!file) return; if(!confirm("ยืนยันการนำเข้าข้อมูล?")) { input.value = ''; return; } const reader = new FileReader(); reader.onload = async function(e) { const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, {type: 'array'}); const worksheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonData = XLSX.utils.sheet_to_json(worksheet); if (jsonData.length === 0) { alert("ไม่พบข้อมูลในไฟล์"); return; } showLoading(`กำลังนำเข้า ${jsonData.length} รายการ...`); let successCount = 0; let failCount = 0; for (let i = 0; i < jsonData.length; i++) { const row = jsonData[i]; const receiptNo = row['เลขรับ'] || row['receiptNo']; if(!receiptNo) continue; const newItem = { receiptNo: receiptNo, qty: row['จำนวนตัวอย่าง'] || row['qty'] || 1, dateReceived: row['วันที่รับ'] || row['dateReceived'] || new Date().toISOString().split('T')[0], layer: row['ชั้นวาง'] || row['layer'] || '-', params: row['พารามิเตอร์'] || row['params'] || '-', disposalPref: row['stimeout'] || row['DisposalPref'] || 'ทิ้ง' }; try { const res = await apiCall('addItem', { item: newItem }, false); if(res.status === 'success') successCount++; else failCount++; } catch (err) { failCount++; } } hideLoading(); input.value = ''; alert(`นำเข้าเสร็จสิ้น: สำเร็จ ${successCount} รายการ, ล้มเหลว ${failCount} รายการ`); await refreshData(); router('items'); }; reader.readAsArrayBuffer(file); }
-        function openItemModal(item = null) { const isEdit = !!item; const modalHtml = `<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 animate-[fadeIn_0.2s_ease-out]"><h3 class="text-xl font-bold mb-4">${isEdit ? 'แก้ไขตัวอย่าง' : 'เพิ่มตัวอย่างใหม่'}</h3><form onsubmit="handleSaveItem(event, '${isEdit ? item.id : ''}')" class="space-y-3"><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-600">เลขรับ</label><input type="text" id="m-receipt" value="${item?.receiptNo || ''}" class="w-full p-2 border rounded" required></div><div><label class="block text-xs font-bold text-gray-600">วันที่รับ</label><input type="date" id="m-date" value="${item?.dateReceived || ''}" class="w-full p-2 border rounded" required></div></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-600">จำนวน</label><input type="number" id="m-qty" value="${item?.qty || 1}" class="w-full p-2 border rounded" required></div><div><label class="block text-xs font-bold text-gray-600">ชั้นเก็บ</label><input type="text" id="m-layer" value="${item?.layer || ''}" class="w-full p-2 border rounded" placeholder="เช่น A1"></div></div><div><label class="block text-xs font-bold text-gray-600">พารามิเตอร์วิเคราะห์</label><input type="text" id="m-params" value="${item?.params || ''}" class="w-full p-2 border rounded" placeholder="เช่น pH, EC, N, P, K"></div><div><label class="block text-xs font-bold text-gray-600">ความต้องการหลังวิเคราะห์ (stimeout)</label><select id="m-pref" class="w-full p-2 border rounded"><option value="ทิ้ง" ${item?.disposalPref === 'ทิ้ง' ? 'selected' : ''}>ทิ้ง</option><option value="รับคืน" ${item?.disposalPref === 'รับคืน' ? 'selected' : ''}>รับคืน</option></select></div><div class="flex justify-end space-x-2 mt-4 pt-4 border-t"><button type="button" onclick="document.getElementById('modal-container').innerHTML=''" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">ยกเลิก</button><button type="submit" class="btn-primary">บันทึก</button></div></form></div></div>`; document.getElementById('modal-container').innerHTML = modalHtml; }
-        async function handleSaveItem(e, id) { e.preventDefault(); const newItem = { id: id, receiptNo: document.getElementById('m-receipt').value, dateReceived: document.getElementById('m-date').value, qty: document.getElementById('m-qty').value, layer: document.getElementById('m-layer').value, params: document.getElementById('m-params').value, disposalPref: document.getElementById('m-pref').value }; const action = id ? 'editItem' : 'addItem'; const res = await apiCall(action, { item: newItem }); if (res.status === 'success') { document.getElementById('modal-container').innerHTML = ''; await refreshData(); router('items'); } else { alert(res.message); } }
+        async function handleImport(input) { const file = input.files[0]; if (!file) return; if(!confirm("ยืนยันการนำเข้าข้อมูล?")) { input.value = ''; return; } const reader = new FileReader(); reader.onload = async function(e) { const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, {type: 'array'}); const worksheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonData = XLSX.utils.sheet_to_json(worksheet); if (jsonData.length === 0) { alert("ไม่พบข้อมูลในไฟล์"); return; } showLoading(`กำลังนำเข้า ${jsonData.length} รายการ...`); let successCount = 0; let failCount = 0; for (let i = 0; i < jsonData.length; i++) { const row = jsonData[i]; const receiptNo = row['เลขรับ'] || row['receiptNo']; if(!receiptNo) continue; const newItem = { receiptNo: receiptNo, qty: row['จำนวนตัวอย่าง'] || row['qty'] || 1, dateReceived: row['วันที่รับ'] || row['dateReceived'] || new Date().toISOString().split('T')[0], layer: "'" + (row['ชั้นวาง'] || row['layer'] || '-'), params: row['พารามิเตอร์'] || row['params'] || '-', disposalPref: row['การจำหน่ายตัวอย่าง'] || row['stimeout'] || row['DisposalPref'] || 'ทิ้ง' }; try { const res = await apiCall('addItem', { item: newItem }, false); if(res.status === 'success') successCount++; else failCount++; } catch (err) { failCount++; } } hideLoading(); input.value = ''; alert(`นำเข้าเสร็จสิ้น: สำเร็จ ${successCount} รายการ, ล้มเหลว ${failCount} รายการ`); await refreshData(); router('items'); }; reader.readAsArrayBuffer(file); }
+        function openItemModal(item = null) { const isEdit = !!item; const modalHtml = `<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 animate-[fadeIn_0.2s_ease-out]"><h3 class="text-xl font-bold mb-4">${isEdit ? 'แก้ไขตัวอย่าง' : 'เพิ่มตัวอย่างใหม่'}</h3><form onsubmit="handleSaveItem(event, '${isEdit ? item.id : ''}')" class="space-y-3"><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-600">เลขรับ</label><input type="text" id="m-receipt" value="${item?.receiptNo || ''}" class="w-full p-2 border rounded" required></div><div><label class="block text-xs font-bold text-gray-600">วันที่รับ</label><input type="date" id="m-date" value="${item?.dateReceived || ''}" class="w-full p-2 border rounded" required></div></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-600">จำนวน</label><input type="number" id="m-qty" value="${item?.qty || 1}" class="w-full p-2 border rounded" required></div><div><label class="block text-xs font-bold text-gray-600">ชั้นเก็บ</label><input type="text" id="m-layer" value="${item?.layer || ''}" class="w-full p-2 border rounded" placeholder="เช่น A1"></div></div><div><label class="block text-xs font-bold text-gray-600">พารามิเตอร์วิเคราะห์</label><input type="text" id="m-params" value="${item?.params || ''}" class="w-full p-2 border rounded" placeholder="เช่น pH, EC, N, P, K"></div><div><label class="block text-xs font-bold text-gray-600">ความต้องการหลังวิเคราะห์ (การจำหน่ายตัวอย่าง)</label><select id="m-pref" class="w-full p-2 border rounded"><option value="ทิ้ง" ${item?.disposalPref === 'ทิ้ง' ? 'selected' : ''}>ทิ้ง</option><option value="รับคืน" ${item?.disposalPref === 'รับคืน' ? 'selected' : ''}>รับคืน</option></select></div><div class="flex justify-end space-x-2 mt-4 pt-4 border-t"><button type="button" onclick="document.getElementById('modal-container').innerHTML=''" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">ยกเลิก</button><button type="submit" class="btn-primary">บันทึก</button></div></form></div></div>`; document.getElementById('modal-container').innerHTML = modalHtml; }
+        async function handleSaveItem(e, id) { e.preventDefault(); const newItem = { id: id, receiptNo: document.getElementById('m-receipt').value, dateReceived: document.getElementById('m-date').value, qty: document.getElementById('m-qty').value, layer: "'" + document.getElementById('m-layer').value, params: document.getElementById('m-params').value, disposalPref: document.getElementById('m-pref').value }; const action = id ? 'editItem' : 'addItem'; const res = await apiCall(action, { item: newItem }); if (res.status === 'success') { document.getElementById('modal-container').innerHTML = ''; await refreshData(); router('items'); } else { alert(res.message); } }
         
         async function processTransaction(type, itemId) { if (!itemId) return alert('รหัสสินค้าไม่ถูกต้อง'); const action = type === 'borrow' ? 'borrowItem' : 'returnItem'; const res = await apiCall(action, { itemId: itemId, username: currentUser.username }); if (res.status === 'success') { alert(type === 'borrow' ? 'เบิกสำเร็จ' : 'คืนสำเร็จ'); await refreshData(); router('borrow'); } else { alert(res.message); } }
         async function handleProfileUpdate(e) { e.preventDefault(); const pass = document.getElementById('edit-pass').value; const updateData = { username: currentUser.username, name: document.getElementById('edit-name').value, group: document.getElementById('edit-group').value, password: pass ? pass : currentUser.password }; const res = await apiCall('updateProfile', updateData); if(res.status === 'success') { currentUser.name = updateData.name; currentUser.group = updateData.group; if(pass) currentUser.password = pass; localStorage.setItem('soilAppUser', JSON.stringify(currentUser)); alert('แก้ไขข้อมูลสำเร็จ'); updateNavUser(); } }
@@ -672,13 +642,26 @@
                         if(autoHideLoading) hideLoading();
                         let result = { status: 'success' };
                         // Mock handlers...
-                        if (action === 'login') { const user = mockUsers.find(u => u.username === payload.username && u.password === payload.password); if (user) result.user = user; else result = { status: 'error', message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }; }
+                        if (action === 'login') { 
+                            const user = mockUsers.find(u => u.username === payload.username && u.password === payload.password); 
+                            if (user) result.user = user; else result = { status: 'error', message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }; 
+                        }
                         else if (action === 'getItems') { result.items = [...mockItems]; }
                         else if (action === 'getHistory') { result.events = [...mockEvents]; }
                         else if (action === 'getUsers') { result.users = mockUsers; }
                         else if (action === 'reportItem') { const item = mockItems.find(i => i.id === payload.id); if(item) item.dateReported = payload.date; result.message = "รายงานผลสำเร็จ"; }
                         else if (action === 'disposeItem') { const item = mockItems.find(i => i.id === payload.id); if(item) item.disposalStatus = 'Completed'; result.message = "ดำเนินการสำเร็จ"; }
                         else if (action === 'deleteItem') { const idx = mockItems.findIndex(i => i.id === payload.id); if(idx > -1) mockItems.splice(idx, 1); result.message = "ลบสำเร็จ"; }
+                        // NEW: Toggle permission mock
+                        else if (action === 'toggleUserPermission') {
+                            const u = mockUsers.find(u => u.username === payload.username);
+                            if(u) {
+                                if(payload.type === 'report') u.canReport = payload.value;
+                                else if(payload.type === 'manage') u.canManage = payload.value;
+                                else if(payload.type === 'dispose') u.canDispose = payload.value;
+                                result.message = "บันทึกสิทธิ์เรียบร้อย";
+                            } else result = { status: 'error', message: 'User not found' };
+                        }
                         resolve(result);
                     }, MOCK_DELAY);
                 });
