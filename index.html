@@ -79,7 +79,6 @@
     <!-- Login Screen -->
     <div id="login-screen" class="fixed inset-0 bg-slate-900 z-[100] flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col relative">
-            <!-- Removed gear icon -->
             <div class="bg-emerald-600 p-6 text-white text-center">
                 <i class="fa-solid fa-flask text-4xl mb-3"></i>
                 <h2 class="text-2xl font-bold">กลุ่มวิจัยเคมีดิน</h2>
@@ -91,8 +90,6 @@
                     <button onclick="showLoginTab('register')" id="tab-register" class="flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600">ลงทะเบียน</button>
                 </div>
                 
-                <!-- Removed URL settings box -->
-
                 <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ใช้</label><input type="text" id="login-user" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label><input type="password" id="login-pass" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
@@ -127,7 +124,7 @@
 
     <script>
         const MOCK_DELAY = 250;
-        // Updated API URL (Hardcoded)
+        // ** API URL ที่ถูกต้อง (ฝังไว้เลย ห้ามลบ) **
         const API_URL = "https://script.google.com/macros/s/AKfycbzb3O1kWnyJtD7jPor_rfnJOrD9df1Jzjb66QtBXeIzgyKZHXRq8FramTk6RGptFCRKLQ/exec";
         
         const DEPARTMENTS = ["ฝ่ายบริหารทั่วไป", "กลุ่มวิจัยเคมีดิน", "กลุ่มวิจัยกายภาพดิน", "กลุ่มวิจัยสิ่งแวดล้อม", "กลุ่มวิเคราะห์ วิจัย พืช ปุ๋ย และสิ่งปรับปรุงดิน", "กลุ่มวิจัยแร่และจุลสัณฐานดิน", "กลุ่มมาตรฐานและพัฒนาระบบการวิเคราะห์", "กลุ่มวิทยบริการ"];
@@ -155,8 +152,6 @@
             const overlay = document.getElementById('loading-overlay');
             if (overlay) overlay.classList.add('hidden');
         }
-        
-        // Removed toggleUrlSetting and saveApiUrl
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -184,13 +179,16 @@
             
             showLoading("กำลังตรวจสอบข้อมูล...");
             try {
+                // Call API without hiding loading yet
                 const res = await apiCall('login', { username: user, password: pass }, false); 
+                
                 if (res.status === 'success') {
                     showLoading("กำลังเข้าสู่ระบบ...");
                     currentUser = res.user;
                     if (remember) localStorage.setItem('soilAppUser', JSON.stringify(currentUser));
-                    document.getElementById('login-screen').classList.add('hidden');
                     
+                    // Render UI
+                    document.getElementById('login-screen').classList.add('hidden');
                     renderSidebar();
                     updateNavUser();
                     
@@ -205,7 +203,7 @@
                 }
             } catch (err) {
                 hideLoading();
-                alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message);
+                alert("เกิดข้อผิดพลาดในการเชื่อมต่อ (Network Error): " + err.message);
             }
         }
 
@@ -238,15 +236,17 @@
             }
         }
 
-        // --- MAIN FUNCTIONS ---
+        // --- API CALL FUNCTION (Robust) ---
         async function apiCall(action, payload = {}, autoHideLoading = true) {
             if(autoHideLoading) showLoading("กำลังประมวลผล...");
             
             if (!isRealMode) {
+                // ... MOCK LOGIC ...
                 return new Promise((resolve) => {
                     setTimeout(() => {
                         if(autoHideLoading) hideLoading();
                         let result = { status: 'success' };
+                        // Mock handlers...
                         if (action === 'login') { const user = mockUsers.find(u => u.username === payload.username && u.password === payload.password); if (user) result.user = user; else result = { status: 'error', message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }; }
                         else if (action === 'getItems') { result.items = [...mockItems]; }
                         else if (action === 'getHistory') { result.events = [...mockEvents]; }
@@ -269,19 +269,39 @@
                 });
             } else {
                 try {
-                    const response = await fetch(API_URL.trim(), {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 20000); 
+
+                    const response = await fetch(API_URL, {
                         method: 'POST',
                         redirect: 'follow',
                         headers: { "Content-Type": "text/plain;charset=utf-8" },
-                        body: JSON.stringify({ action, ...payload })
+                        body: JSON.stringify({ action, ...payload }),
+                        signal: controller.signal
                     });
-                    const data = await response.json();
-                    if(autoHideLoading) hideLoading();
-                    return data;
+                    
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP Error: ${response.status}`);
+                    }
+
+                    const text = await response.text();
+                    try {
+                        const data = JSON.parse(text);
+                        if(autoHideLoading) hideLoading();
+                        return data;
+                    } catch (jsonErr) {
+                         throw new Error("Invalid JSON response from server");
+                    }
                 } catch (e) {
                     if(autoHideLoading) hideLoading();
-                    console.error(e);
-                    return { status: 'error', message: e.toString() };
+                    console.error("API Call Error:", e);
+                    
+                    if (e.name === 'AbortError') {
+                         return { status: 'error', message: "หมดเวลาการเชื่อมต่อ (Timeout)" };
+                    }
+                    return { status: 'error', message: e.message };
                 }
             }
         }
@@ -300,10 +320,13 @@
             hideLoading();
         }
 
+        // --- INIT & OTHER FUNCTIONS ---
         function init() {
+            localStorage.removeItem('customApiUrl'); 
             const storedUser = localStorage.getItem('soilAppUser');
-            isRealMode = true;
+            isRealMode = true; 
             updateStatusBadge();
+
             if (storedUser) {
                 try { 
                     currentUser = JSON.parse(storedUser); 
@@ -314,7 +337,7 @@
             }
         }
 
-        // --- REMAINING HELPER & UI FUNCTIONS ---
+        function updateNavAndRedirect() { renderSidebar(); updateNavUser(); refreshData().then(() => router('dashboard')); }
         function logout() { localStorage.removeItem('soilAppUser'); location.reload(); }
         function showLoginTab(tab) { document.getElementById('login-error-msg').classList.add('hidden'); if (tab === 'login') { document.getElementById('login-form').classList.remove('hidden'); document.getElementById('register-form').classList.add('hidden'); document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; } else { document.getElementById('login-form').classList.add('hidden'); document.getElementById('register-form').classList.remove('hidden'); document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; } }
         function updateNavUser() { if(currentUser) document.getElementById('nav-username').textContent = currentUser.name; }
@@ -340,7 +363,7 @@
         function filterTable(inputId, tableId) { const input = document.getElementById(inputId); const filter = input.value.toLowerCase(); const table = document.getElementById(tableId); const tr = table.getElementsByTagName("tr"); for (let i = 1; i < tr.length; i++) { const tdArr = tr[i].getElementsByTagName("td"); let found = false; for(let j=0; j<tdArr.length; j++) { if (tdArr[j]) { if (tdArr[j].textContent.toLowerCase().indexOf(filter) > -1) { found = true; break; } } } tr[i].style.display = found ? "" : "none"; } }
         function handleSearch(term) { searchTerm = term.toLowerCase(); currentPage = 1; renderContent(); }
 
-        // --- APP LOGIC (Render Sidebar, Router, Content) ---
+        // --- ROUTER & RENDERERS (Corrected) ---
         function renderSidebar() {
             const nav = document.getElementById('nav-container');
             if (!currentUser) return;
@@ -381,43 +404,123 @@
             let html = '';
             
             if (currentView === 'status') {
-                const filteredItems = items.filter(i => !searchTerm || i.receiptNo.toLowerCase().includes(searchTerm) || i.layer.toLowerCase().includes(searchTerm) || i.holder.toLowerCase().includes(searchTerm));
-                const displayItems = filteredItems.slice((currentPage-1)*ROWS_PER_PAGE, currentPage*ROWS_PER_PAGE);
-                html = `<h2 class="text-2xl font-bold mb-6 text-slate-800">สถานะตัวอย่างดินทั้งหมด</h2><div class="bg-white p-4 rounded-xl shadow-sm mb-4"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา (เลขรับ, ชั้น, ผู้เบิก...)" class="w-full p-2 border rounded-lg"></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">สถานะ</th><th class="p-4">ผู้ที่กำลังเบิกไป</th><th class="p-4">พารามิเตอร์</th><th class="p-4">รายงานผลเมื่อ</th></tr></thead><tbody class="divide-y divide-gray-100">${displayItems.map(item => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${item.qty}</td><td class="p-4">${item.layer}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-semibold ${item.status === 'Available' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${item.status === 'Available' ? 'ว่าง' : 'ถูกเบิก'}</span></td><td class="p-4 ${item.status === 'Borrowed' ? 'text-red-600 font-bold' : 'text-gray-400'}">${item.holder}</td><td class="p-4 text-xs text-gray-500">${item.params}</td><td class="p-4 text-xs text-blue-500">${formatDateTh(item.dateReported, false)}</td></tr>`).join('')}</tbody></table></div>${renderPagination(filteredItems.length, 'changePage')}</div>`;
+                const filteredItems = items.filter(i => {
+                    if (!searchTerm) return true;
+                    // Safe string conversion
+                    const receipt = (i.receiptNo || "").toLowerCase();
+                    const layer = (i.layer || "").toLowerCase();
+                    const holder = (i.holder || "").toLowerCase();
+                    const search = searchTerm.toLowerCase();
+                    return receipt.includes(search) || layer.includes(search) || holder.includes(search);
+                });
+                
+                const start = (currentPage - 1) * ROWS_PER_PAGE;
+                const displayItems = filteredItems.slice(start, start + ROWS_PER_PAGE);
+
+                html = `
+                    <h2 class="text-2xl font-bold mb-6 text-slate-800">สถานะตัวอย่างดินทั้งหมด</h2>
+                    <div class="bg-white p-4 rounded-xl shadow-sm mb-4"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา (เลขรับ, ชั้น, ผู้เบิก...)" class="w-full p-2 border rounded-lg"></div>
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">สถานะ</th><th class="p-4">ผู้ที่กำลังเบิกไป</th><th class="p-4">พารามิเตอร์</th><th class="p-4">รายงานผลเมื่อ</th></tr></thead>
+                    <tbody class="divide-y divide-gray-100">${displayItems.map(item => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${item.qty}</td><td class="p-4">${item.layer}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-semibold ${item.status === 'Available' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${item.status === 'Available' ? 'ว่าง' : 'ถูกเบิก'}</span></td><td class="p-4 ${item.status === 'Borrowed' ? 'text-red-600 font-bold' : 'text-gray-400'}">${item.holder}</td><td class="p-4 text-xs text-gray-500">${item.params}</td><td class="p-4 text-xs text-blue-500">${formatDateTh(item.dateReported, false)}</td></tr>`).join('')}</tbody></table></div>
+                    ${renderPagination(filteredItems.length, 'changePage')}
+                    </div>`;
             } 
             else if (currentView === 'items') {
                 if (currentUser.username !== 'admin') { container.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</div>`; return; }
                 const canAct = currentUser.username === 'admin' || currentUser.canManage === true;
-                const filteredItems = items.filter(i => !searchTerm || i.receiptNo.toLowerCase().includes(searchTerm) || i.layer.toLowerCase().includes(searchTerm));
+                const filteredItems = items.filter(i => {
+                    const receipt = (i.receiptNo || "").toLowerCase();
+                    const layer = (i.layer || "").toLowerCase();
+                    const search = searchTerm.toLowerCase();
+                    return !searchTerm || receipt.includes(search) || layer.includes(search);
+                });
                 const displayItems = filteredItems.slice((currentPage-1)*ROWS_PER_PAGE, currentPage*ROWS_PER_PAGE);
-                html = `<div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4"><h2 class="text-2xl font-bold text-slate-800">จัดการตัวอย่างดิน</h2><div class="flex flex-wrap items-center gap-3 justify-end"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40"><div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1"><button onclick="exportItemsXLSX()" class="px-3 py-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Export Excel"><i class="fa-solid fa-file-excel text-lg"></i></button><div class="w-px bg-gray-200 my-1"></div><button onclick="exportItemsPDF()" class="px-3 py-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Export PDF"><i class="fa-solid fa-file-pdf text-lg"></i></button></div>${canAct ? `<div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1"><button onclick="downloadTemplate()" class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="ดาวน์โหลดฟอร์ม"><i class="fa-solid fa-file-arrow-down"></i> <span class="hidden sm:inline">โหลดฟอร์ม</span></button><div class="w-px bg-gray-200 my-1"></div><div class="relative"><button class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"><i class="fa-solid fa-file-import"></i> <span class="hidden sm:inline">นำเข้า</span></button><input type="file" id="import-file" accept=".xlsx, .xls" onchange="handleImport(this)" class="absolute inset-0 opacity-0 cursor-pointer" title="อัปโหลดไฟล์ Excel"></div></div><button onclick="openItemModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-plus"></i> <span>เพิ่มข้อมูล</span></button><button onclick="deleteSelected('item')" id="btn-delete-selected" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md transition-all hidden flex items-center gap-2 text-sm font-medium animate-pulse"><i class="fa-solid fa-trash-can"></i> <span id="selected-count">0</span></button>` : ''}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this)">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รับ</th><th class="p-4">การจำหน่ายตัวอย่าง</th><th class="p-4">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100">${displayItems.map(item => `<tr class="hover:bg-gray-50"><td class="p-4">${canAct ? `<input type="checkbox" class="item-checkbox" value="${item.id}" onchange="checkSelection()">` : ''}</td><td class="p-4 font-bold text-emerald-700">${item.receiptNo}</td><td class="p-4">${item.qty}</td><td class="p-4">${item.layer}</td><td class="p-4">${formatDateTh(item.dateReceived, false)}</td><td class="p-4 text-xs">${item.disposalPref}</td><td class="p-4 space-x-2">${canAct ? `<button onclick='openItemModal(${JSON.stringify(item)})' class="text-blue-500 hover:text-blue-700"><i class="fa-solid fa-edit"></i></button><button onclick="deleteItem('${item.id}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>` : '<span class="text-gray-400 text-xs">ไม่มีสิทธิ์</span>'}</td></tr>`).join('')}</tbody></table></div>${renderPagination(filteredItems.length, 'changePage')}</div>`;
+
+                html = `
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4"><h2 class="text-2xl font-bold text-slate-800">จัดการตัวอย่างดิน</h2><div class="flex flex-wrap items-center gap-3 justify-end"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40"><div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1"><button onclick="exportItemsXLSX()" class="px-3 py-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Export Excel"><i class="fa-solid fa-file-excel text-lg"></i></button><div class="w-px bg-gray-200 my-1"></div><button onclick="exportItemsPDF()" class="px-3 py-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Export PDF"><i class="fa-solid fa-file-pdf text-lg"></i></button></div>${canAct ? `<div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1"><button onclick="downloadTemplate()" class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="ดาวน์โหลดฟอร์ม"><i class="fa-solid fa-file-arrow-down"></i> <span class="hidden sm:inline">โหลดฟอร์ม</span></button><div class="w-px bg-gray-200 my-1"></div><div class="relative"><button class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"><i class="fa-solid fa-file-import"></i> <span class="hidden sm:inline">นำเข้า</span></button><input type="file" id="import-file" accept=".xlsx, .xls" onchange="handleImport(this)" class="absolute inset-0 opacity-0 cursor-pointer" title="อัปโหลดไฟล์ Excel"></div></div><button onclick="openItemModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-plus"></i> <span>เพิ่มข้อมูล</span></button><button onclick="deleteSelected('item')" id="btn-delete-selected" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md transition-all hidden flex items-center gap-2 text-sm font-medium animate-pulse"><i class="fa-solid fa-trash-can"></i> <span id="selected-count">0</span></button>` : ''}</div></div>
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this)">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รับ</th><th class="p-4">การจำหน่ายตัวอย่าง</th><th class="p-4">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100">${displayItems.map(item => `<tr class="hover:bg-gray-50"><td class="p-4">${canAct ? `<input type="checkbox" class="item-checkbox" value="${item.id}" onchange="checkSelection()">` : ''}</td><td class="p-4 font-bold text-emerald-700">${item.receiptNo}</td><td class="p-4">${item.qty}</td><td class="p-4">${item.layer}</td><td class="p-4">${formatDateTh(item.dateReceived, false)}</td><td class="p-4 text-xs">${item.disposalPref}</td><td class="p-4 space-x-2">${canAct ? `<button onclick='openItemModal(${JSON.stringify(item)})' class="text-blue-500 hover:text-blue-700"><i class="fa-solid fa-edit"></i></button><button onclick="deleteItem('${item.id}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>` : '<span class="text-gray-400 text-xs">ไม่มีสิทธิ์</span>'}</td></tr>`).join('')}</tbody></table></div>${renderPagination(filteredItems.length, 'changePage')}</div>
+                `;
             }
+
+            // --- 3. BORROW PAGE ---
+            else if (currentView === 'borrow') {
+                const availableItems = items.filter(i => i.status === 'Available');
+                const borrowedByMe = items.filter(i => i.status === 'Borrowed' && i.holder === currentUser.username);
+                
+                // Client-side search for borrow list
+                const filteredAvailable = availableItems.filter(i => {
+                    const receipt = (i.receiptNo || "").toLowerCase();
+                    const layer = (i.layer || "").toLowerCase();
+                    const search = searchTerm.toLowerCase();
+                    return !searchTerm || receipt.includes(search) || layer.includes(search);
+                });
+                
+                html = `
+                    <h2 class="text-2xl font-bold mb-6 text-slate-800">ระบบเบิก-คืน ตัวอย่าง</h2>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="bg-white p-6 rounded-xl shadow-sm h-[600px] flex flex-col">
+                            <h3 class="text-lg font-bold mb-4 text-emerald-700 border-b pb-2">เบิกตัวอย่าง (ค้นหา)</h3>
+                            <div class="mb-4"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="พิมพ์เลขรับ หรือ ชั้นเก็บ..." class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div>
+                            <div class="flex-1 overflow-y-auto pr-2">
+                                <table class="w-full text-sm text-left"><thead class="sticky top-0 bg-white shadow-sm"><tr class="text-gray-500"><th class="pb-2">เลขรับ</th><th class="pb-2">จำนวน</th><th class="pb-2">ชั้น</th><th class="pb-2 text-right">เลือก</th></tr></thead>
+                                <tbody id="borrow-list-body">
+                                    ${filteredAvailable.length === 0 ? '<tr><td colspan="4" class="text-center py-4 text-gray-400">ไม่พบตัวอย่าง</td></tr>' : filteredAvailable.map(i => `
+                                    <tr class="borrow-item-row border-b hover:bg-gray-50">
+                                        <td class="py-3 font-bold text-gray-700">${i.receiptNo}</td>
+                                        <td class="py-3">${i.qty}</td>
+                                        <td class="py-3 text-gray-500">${i.layer}</td>
+                                        <td class="py-3 text-right"><button onclick="processTransaction('borrow', '${i.id}')" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1 rounded text-xs font-bold transition-colors">เบิก</button></td>
+                                    </tr>`).join('')}
+                                </tbody></table>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm h-fit">
+                            <h3 class="text-lg font-bold mb-4 text-blue-700 border-b pb-2">คืนตัวอย่างของฉัน</h3>
+                            <div class="overflow-y-auto max-h-[500px]">
+                                <table class="w-full text-sm text-left"><thead class="sticky top-0 bg-white"><tr class="text-gray-500"><th class="pb-2">เลขรับ</th><th class="pb-2">จำนวน</th><th class="pb-2 text-right">คืน</th></tr></thead>
+                                <tbody>
+                                    ${borrowedByMe.length === 0 ? '<tr><td colspan="3" class="text-center py-4 text-gray-400">ไม่มีรายการค้างส่งคืน</td></tr>' : borrowedByMe.map(i => `
+                                    <tr class="border-b hover:bg-gray-50">
+                                        <td class="py-3 font-bold text-gray-700">${i.receiptNo}</td>
+                                        <td class="py-3">${i.qty}</td>
+                                        <td class="py-3 text-right"><button onclick="processTransaction('return', '${i.id}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded text-xs font-bold transition-colors">คืน</button></td>
+                                    </tr>`).join('')}
+                                </tbody></table>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+
+            // --- 4. HISTORY PAGE ---
             else if (currentView === 'history') {
                 const isAdmin = currentUser.username === 'admin';
-                const filteredEvents = events.filter(e => !searchTerm || e.itemName.toLowerCase().includes(searchTerm) || e.user.toLowerCase().includes(searchTerm));
+                const filteredEvents = events.filter(e => {
+                    const itemName = (e.itemName || "").toString().toLowerCase();
+                    const user = (e.user || "").toString().toLowerCase();
+                    const search = searchTerm.toLowerCase();
+                    return !searchTerm || itemName.includes(search) || user.includes(search);
+                });
                 const start = (currentPage - 1) * ROWS_PER_PAGE;
                 const displayEvents = filteredEvents.slice(start, start + ROWS_PER_PAGE);
 
-                html = `<div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-slate-800">ประวัติการใช้งาน</h2><div class="flex gap-2 items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40 mr-2">${isAdmin ? `<button onclick="deleteSelected('event')" id="btn-delete-history" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hidden flex items-center gap-2 text-sm font-medium animate-pulse"><i class="fa-solid fa-trash-can"></i> ลบที่เลือก</button>` : ''}<div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1"><button onclick="exportXLSX()" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Export Excel"><i class="fa-solid fa-file-excel text-xl"></i> <span class="font-medium">Excel</span></button><div class="w-px bg-gray-200 my-1 mx-1"></div><button onclick="exportPDF()" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Export PDF"><i class="fa-solid fa-file-pdf text-xl"></i> <span class="font-medium">PDF</span></button></div></div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table id="history-table" class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4 w-10">${isAdmin ? '<input type="checkbox" onchange="toggleAllItems(this, \'btn-delete-history\')">' : ''}</th><th class="p-4">เวลา</th><th class="p-4">รายการ</th><th class="p-4">เลขรับตัวอย่าง</th><th class="p-4">ผู้ดำเนินการ</th><th class="p-4">ชื่อ-สกุล</th><th class="p-4">กลุ่มงาน</th><th class="p-4">หมายเหตุ</th><th class="p-4">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100">${displayEvents.map(e => { const userInfo = getUserInfo(e.user); return `<tr class="hover:bg-gray-50"><td class="p-4">${isAdmin ? `<input type="checkbox" class="item-checkbox" value="${e.id}" onchange="checkSelection('btn-delete-history')">` : ''}</td><td class="p-4 whitespace-nowrap">${formatDateTh(e.date)}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs ${e.type === 'Borrow' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}">${e.type === 'Borrow' ? 'เบิกออก' : 'นำคืน'}</span></td><td class="p-4 font-mono">${e.itemName}</td><td class="p-4">${e.user}</td><td class="p-4 text-gray-700">${userInfo.name}</td><td class="p-4 text-gray-500 text-xs">${userInfo.group}</td><td class="p-4 text-gray-400">${e.note || '-'}</td><td class="p-4">${isAdmin ? `<button onclick="deleteEvent('${e.id}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>${renderPagination(filteredEvents.length, 'changePage')}</div>`;
+                html = `
+                    <div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-slate-800">ประวัติการใช้งาน</h2><div class="flex gap-2 items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40 mr-2">${isAdmin ? `<button onclick="deleteSelected('event')" id="btn-delete-history" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hidden flex items-center gap-2 text-sm font-medium animate-pulse"><i class="fa-solid fa-trash-can"></i> ลบที่เลือก</button>` : ''}<div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1"><button onclick="exportXLSX()" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Export Excel"><i class="fa-solid fa-file-excel text-xl"></i> <span class="font-medium">Excel</span></button><div class="w-px bg-gray-200 my-1 mx-1"></div><button onclick="exportPDF()" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Export PDF"><i class="fa-solid fa-file-pdf text-xl"></i> <span class="font-medium">PDF</span></button></div></div></div>
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table id="history-table" class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4 w-10">${isAdmin ? '<input type="checkbox" onchange="toggleAllItems(this, \'btn-delete-history\')">' : ''}</th><th class="p-4">เวลา</th><th class="p-4">รายการ</th><th class="p-4">เลขรับตัวอย่าง</th><th class="p-4">ผู้ดำเนินการ</th><th class="p-4">ชื่อ-สกุล</th><th class="p-4">กลุ่มงาน</th><th class="p-4">หมายเหตุ</th><th class="p-4">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100">${displayEvents.map(e => { const userInfo = getUserInfo(e.user); return `<tr class="hover:bg-gray-50"><td class="p-4">${isAdmin ? `<input type="checkbox" class="item-checkbox" value="${e.id}" onchange="checkSelection('btn-delete-history')">` : ''}</td><td class="p-4 whitespace-nowrap">${formatDateTh(e.date)}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs ${e.type === 'Borrow' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}">${e.type === 'Borrow' ? 'เบิกออก' : 'นำคืน'}</span></td><td class="p-4 font-mono">${e.itemName}</td><td class="p-4">${e.user}</td><td class="p-4 text-gray-700">${userInfo.name}</td><td class="p-4 text-gray-500 text-xs">${userInfo.group}</td><td class="p-4 text-gray-400">${e.note || '-'}</td><td class="p-4">${isAdmin ? `<button onclick="deleteEvent('${e.id}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>${renderPagination(filteredEvents.length, 'changePage')}</div>`;
             }
-            else if (viewName === 'dispose') {
+
+            // --- 5. DISPOSE PAGE ---
+            else if (currentView === 'dispose') {
                 const overdueItems = items.filter(i => { if (!i.dateReported || i.disposalStatus === 'Completed') return false; return calculateDaysRemaining(i.dateReported) >= 60; });
-                const filteredOverdue = overdueItems.filter(i => !searchTerm || i.receiptNo.toLowerCase().includes(searchTerm));
+                const filteredOverdue = overdueItems.filter(i => !searchTerm || (i.receiptNo || "").toLowerCase().includes(searchTerm));
                 const start = (currentPage - 1) * ROWS_PER_PAGE;
                 const displayOverdue = filteredOverdue.slice(start, start + ROWS_PER_PAGE);
                 
                 const canAct = currentUser.username === 'admin' || currentUser.canDispose === true;
                 html = `<div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-orange-700">จำหน่ายตัวอย่าง (ครบกำหนด 60 วัน)</h2><div class="flex space-x-2"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-32">${canAct ? `<button onclick="deleteSelected('item')" id="btn-delete-dispose" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hidden flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-trash-can"></i> ลบที่เลือก</button>` : ''}<button onclick="exportDisposeXLSX()" class="btn-success text-sm"><i class="fa-solid fa-file-excel mr-2"></i>Export Excel</button><button onclick="exportDisposePDF()" class="btn-secondary text-sm"><i class="fa-solid fa-file-pdf mr-2"></i>Export PDF</button></div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-orange-50 text-orange-800 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this, \'btn-delete-dispose\')">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">วันที่รายงานผล</th><th class="p-4">เกินกำหนด (วัน)</th><th class="p-4">ความต้องการ</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100">${displayOverdue.map(item => { const days = calculateDaysRemaining(item.dateReported); return `<tr class="hover:bg-gray-50"><td class="p-4">${canAct ? `<input type="checkbox" class="item-checkbox" value="${item.id}" onchange="checkSelection('btn-delete-dispose')">` : ''}</td><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${formatDateTh(item.dateReported, false)}</td><td class="p-4 text-red-600 font-bold">${days} วัน</td><td class="p-4"><span class="px-2 py-1 rounded text-xs font-bold ${item.disposalPref === 'รับคืน' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-800'}">${item.disposalPref}</span></td><td class="p-4 text-center space-x-2">${canAct ? `<button onclick="handleDisposeItem('${item.id}', '${item.disposalPref}')" class="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded shadow-sm text-xs transition-colors">ดำเนินการ</button><button onclick="deleteItem('${item.id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded shadow-sm text-xs" title="ลบข้อมูล"><i class="fa-solid fa-trash-can"></i></button>` : '<span class="text-gray-400 text-xs">ไม่มีสิทธิ์</span>'}</td></tr>` }).join('')}</tbody></table></div>${renderPagination(filteredOverdue.length, 'changePage')}</div>`;
             }
-            // Keep existing logic for other views but wrapping in renderContent if needed
-            else if (viewName === 'borrow') {
-                 // Borrow view already has its own search box logic, kept as is or integrated similarly
-                 // For now, keeping original structure but just re-rendering it here to avoid duplication
-                 const availableItems = items.filter(i => i.status === 'Available'); const borrowedByMe = items.filter(i => i.status === 'Borrowed' && i.holder === currentUser.username);
-                 html = `<h2 class="text-2xl font-bold mb-6 text-slate-800">ระบบเบิก-คืน ตัวอย่าง</h2><div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-xl shadow-sm h-[600px] flex flex-col"><h3 class="text-lg font-bold mb-4 text-emerald-700 border-b pb-2">เบิกตัวอย่าง (ค้นหา)</h3><div class="mb-4"><input type="text" id="borrow-search-input" onkeyup="filterBorrowList()" placeholder="พิมพ์เลขรับ หรือ ชั้นเก็บ..." class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div><div class="flex-1 overflow-y-auto pr-2"><table class="w-full text-sm text-left"><thead class="sticky top-0 bg-white shadow-sm"><tr class="text-gray-500"><th class="pb-2">เลขรับ</th><th class="pb-2">จำนวน</th><th class="pb-2">ชั้น</th><th class="pb-2 text-right">เลือก</th></tr></thead><tbody id="borrow-list-body">${availableItems.length === 0 ? '<tr><td colspan="4" class="text-center py-4 text-gray-400">ไม่มีตัวอย่างให้เบิก</td></tr>' : availableItems.map(i => `<tr class="borrow-item-row border-b hover:bg-gray-50"><td class="py-3 font-bold text-gray-700">${i.receiptNo}</td><td class="py-3">${i.qty}</td><td class="py-3 text-gray-500">${i.layer}</td><td class="py-3 text-right"><button onclick="processTransaction('borrow', '${i.id}')" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1 rounded text-xs font-bold transition-colors">เบิก</button></td></tr>`).join('')}</tbody></table></div></div><div class="bg-white p-6 rounded-xl shadow-sm h-fit"><h3 class="text-lg font-bold mb-4 text-blue-700 border-b pb-2">คืนตัวอย่างของฉัน</h3><div class="overflow-y-auto max-h-[500px]"><table class="w-full text-sm text-left"><thead><tr class="text-gray-500"><th class="pb-2">เลขรับ</th><th class="pb-2">จำนวน</th><th class="pb-2 text-right">คืน</th></tr></thead><tbody>${borrowedByMe.length === 0 ? '<tr><td colspan="3" class="text-center py-4 text-gray-400">ไม่มีรายการค้างส่งคืน</td></tr>' : borrowedByMe.map(i => `<tr class="border-b hover:bg-gray-50"><td class="py-3 font-bold text-gray-700">${i.receiptNo}</td><td class="py-3">${i.qty}</td><td class="py-3 text-right"><button onclick="processTransaction('return', '${i.id}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded text-xs font-bold transition-colors">คืน</button></td></tr>`).join('')}</tbody></table></div></div></div>`;
-            }
-            else if (viewName === 'report') {
-                const pendingReport = items.filter(i => !i.dateReported && (!searchTerm || i.receiptNo.toLowerCase().includes(searchTerm)));
+            // --- 6. REPORT PAGE ---
+            else if (currentView === 'report') {
+                const pendingReport = items.filter(i => !i.dateReported && (!searchTerm || (i.receiptNo || "").toLowerCase().includes(searchTerm)));
                 const start = (currentPage - 1) * ROWS_PER_PAGE;
                 const displayReport = pendingReport.slice(start, start + ROWS_PER_PAGE);
                 
@@ -426,18 +529,19 @@
                 <div class="flex justify-between mb-4 space-x-2"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40">${canAct ? `<button onclick="deleteSelected('item')" id="btn-delete-report" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hidden flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-trash-can"></i> ลบที่เลือก</button>` : ''}</div>
                 <div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-blue-50 text-blue-800 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this)">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">วันที่รับ</th><th class="p-4">พารามิเตอร์</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100">${displayReport.length === 0 ? '<tr><td colspan="5" class="p-6 text-center text-gray-400">ไม่มีรายการรอรายงานผล</td></tr>' : displayReport.map(item => `<tr class="hover:bg-gray-50"><td class="p-4">${canAct ? `<input type="checkbox" class="item-checkbox" value="${item.id}" onchange="checkSelection('btn-delete-report')">` : ''}</td><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${formatDateTh(item.dateReceived, false)}</td><td class="p-4 text-xs">${item.params}</td><td class="p-4 text-center space-x-2">${canAct ? `<button onclick="openReportDateModal('${item.id}', '${item.receiptNo}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded shadow-sm text-xs transition-colors">ยืนยัน</button><button onclick="deleteItem('${item.id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded shadow-sm text-xs" title="ลบ"><i class="fa-solid fa-trash-can"></i></button>` : '<span class="text-gray-400 text-xs">ไม่มีสิทธิ์</span>'}</td></tr>`).join('')}</tbody></table></div>${renderPagination(pendingReport.length, 'changePage')}</div>`;
             }
-            else if (viewName === 'users') {
-                 // Only Admin
+
+            // --- 7. USERS PAGE ---
+            else if (currentView === 'users') {
+                 if (currentUser.username !== 'admin') { container.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</div>`; return; }
                  html = `<h2 class="text-2xl font-bold mb-6 text-purple-700">จัดการผู้ใช้งาน (Admin)</h2><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-purple-50 text-purple-800 font-semibold border-b"><tr><th class="p-4">Username</th><th class="p-4">ชื่อ</th><th class="p-4">กลุ่ม</th><th class="p-4">สถานะ</th><th class="p-4 text-center">สิทธิ์รายงานผล</th><th class="p-4 text-center">สิทธิ์จัดการข้อมูล</th><th class="p-4 text-center">สิทธิ์จำหน่าย</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100">${userList.map(u => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${u.username}</td><td class="p-4">${u.name}</td><td class="p-4 text-gray-500">${u.group}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-bold ${u.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${u.status === 'Approved' ? 'อนุมัติแล้ว' : 'รออนุมัติ'}</span></td><td class="p-4 text-center"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" onchange="toggleUserPermission('${u.username}', 'report', this.checked)" class="sr-only peer" ${u.canReport ? 'checked' : ''}><div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div></label></td><td class="p-4 text-center"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" onchange="toggleUserPermission('${u.username}', 'manage', this.checked)" class="sr-only peer" ${u.canManage ? 'checked' : ''}><div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div></label></td><td class="p-4 text-center"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" onchange="toggleUserPermission('${u.username}', 'dispose', this.checked)" class="sr-only peer" ${u.canDispose ? 'checked' : ''}><div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-600"></div></label></td><td class="p-4 text-center space-x-2">${u.status === 'Pending' ? `<button onclick="approveUser('${u.username}')" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded text-xs font-bold hover:bg-emerald-200">อนุมัติ</button>` : ''}<button onclick="deleteUser('${u.username}')" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div></div>`;
             } else if (viewName === 'profile') {
-                // Profile view code...
                 html = `<h2 class="text-2xl font-bold mb-6 text-slate-800">ข้อมูลส่วนตัว</h2><div class="bg-white max-w-lg p-6 rounded-xl shadow-sm"><form onsubmit="handleProfileUpdate(event)" class="space-y-4"><div><label class="block text-sm font-medium text-gray-700 mb-1">Username (แก้ไขไม่ได้)</label><input type="text" value="${currentUser.username}" disabled class="w-full p-2 bg-gray-100 border rounded-lg text-gray-500"></div><div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล</label><input type="text" id="edit-name" value="${currentUser.name}" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div><div><label class="block text-sm font-medium text-gray-700 mb-1">กลุ่มงาน</label><select id="edit-group" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500">${DEPARTMENTS.map(g => `<option value="${g}" ${currentUser.group === g ? 'selected' : ''}>${g}</option>`).join('')}</select></div><div><label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่านใหม่ (ว่างไว้ถ้าไม่เปลี่ยน)</label><input type="password" id="edit-pass" placeholder="New Password" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div><button type="submit" class="btn-primary w-full">บันทึกการเปลี่ยนแปลง</button></form></div>`;
             }
 
             container.innerHTML = html;
         }
 
-        // --- OTHER FUNCTIONS (Same as before) ---
+        // --- OTHER FUNCTIONS ---
         // (Keeping existing approveUser, deleteUser, export functions, etc.)
         async function approveUser(username) { if(!confirm('ยืนยันอนุมัติ?')) return; const res = await apiCall('approveUser', { username: username }); if(res.status === 'success') { alert('เรียบร้อย'); router('users'); } else { alert(res.message); } }
         async function toggleUserPermission(username, type, isChecked) { const res = await apiCall('toggleUserPermission', { username: username, type: type, value: isChecked }); if(res.status !== 'success') { alert(res.message); router('users'); } }
