@@ -26,10 +26,10 @@
         .nav-item-highlight { background-color: #fffbeb; color: #92400e; border: 1px solid #fcd34d; font-weight: bold; }
         .nav-item-highlight:hover { background-color: #fef3c7; }
         .nav-item-highlight.active { background-color: #d97706; color: white; border-color: #b45309; }
+        .toggle-checkbox:checked { right: 0; border-color: #10b981; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
         #sidebar { transition: transform 0.3s ease-in-out; }
         #mobile-overlay { transition: opacity 0.3s ease-in-out; }
-        /* Checkbox Style */
-        .item-checkbox { width: 1.2rem; height: 1.2rem; cursor: pointer; accent-color: #10b981; }
     </style>
 </head>
 <body class="text-gray-800 h-screen flex overflow-hidden">
@@ -119,12 +119,13 @@
     <script>
         const MOCK_DELAY = 250;
         const API_URL = "https://script.google.com/macros/s/AKfycbzb3O1kWnyJtD7jPor_rfnJOrD9df1Jzjb66QtBXeIzgyKZHXRq8FramTk6RGptFCRKLQ/exec";
+        const SECONDARY_DB_URL = "https://docs.google.com/spreadsheets/d/1mPcLcY-vC3_xpSg8BKYplGoENP4U_koiOgiUKu33P4Q/edit?gid=418256453#gid=418256453";
         const DEPARTMENTS = ["ฝ่ายบริหารทั่วไป", "กลุ่มวิจัยเคมีดิน", "กลุ่มวิจัยกายภาพดิน", "กลุ่มวิจัยสิ่งแวดล้อม", "กลุ่มวิเคราะห์ วิจัย พืช ปุ๋ย และสิ่งปรับปรุงดิน", "กลุ่มวิจัยแร่และจุลสัณฐานดิน", "กลุ่มมาตรฐานและพัฒนาระบบการวิเคราะห์", "กลุ่มวิทยบริการ"];
-        
-        // --- GLOBAL VARIABLES ---
-        let rowsPerPage = 20; // Default items per page
+        const ROWS_PER_PAGE = 20;
+
+        let rowsPerPage = 20;
         let currentUser = null, items = [], events = [], userList = [], isRealMode = true;
-        let statusChartInstance = null, monthlyChartInstance = null;
+        let statusChartInstance = null, monthlyChartInstance = null, avgTimeChartInstance = null;
         let currentView = 'dashboard';
         let currentPage = 1, searchTerm = '';
 
@@ -132,7 +133,7 @@
         const mockEvents = [];
         const mockUsers = [{ username: 'admin', password: 'admin123', name: 'Admin System', group: 'IT Support', status: 'Approved', canReport: true, canManage: true, canDispose: true }];
 
-        // --- HELPER FUNCTIONS ---
+        // --- CORE FUNCTIONS ---
         function showLoading(text = "กำลังโหลดข้อมูล...") {
             const overlay = document.getElementById('loading-overlay');
             const txt = document.getElementById('loading-text');
@@ -178,8 +179,12 @@
                     showLoading("กำลังเข้าสู่ระบบ...");
                     currentUser = res.user;
                     if (remember) localStorage.setItem('soilAppUser', JSON.stringify(currentUser));
+                    
                     document.getElementById('login-screen').classList.add('hidden');
-                    renderSidebar(); updateNavUser(); showLoading("กำลังดาวน์โหลดข้อมูลล่าสุด...");
+                    renderSidebar();
+                    updateNavUser();
+                    
+                    showLoading("กำลังดาวน์โหลดข้อมูลล่าสุด...");
                     await refreshData();
                     router('dashboard');
                 } else {
@@ -198,15 +203,35 @@
             e.preventDefault();
             const pass = document.getElementById('reg-pass').value;
             const passConfirm = document.getElementById('reg-pass-confirm').value;
-            if (pass !== passConfirm) { alert("รหัสผ่านไม่ตรงกัน กรุณาตรวจสอบอีกครั้ง"); return; }
-            const payload = { username: document.getElementById('reg-user').value, password: pass, name: document.getElementById('reg-name').value, group: document.getElementById('reg-group').value };
-            showLoading("กำลังลงทะเบียน..."); const res = await apiCall('register', payload, false); hideLoading();
-            if (res.status === 'success') { alert('ลงทะเบียนสำเร็จ! โปรดแจ้ง Admin เพื่อทำการอนุมัติสิทธิ์ก่อนเริ่มใช้งาน'); showLoginTab('login'); } else { alert(res.message); }
+
+            if (pass !== passConfirm) {
+                alert("รหัสผ่านไม่ตรงกัน กรุณาตรวจสอบอีกครั้ง");
+                return;
+            }
+
+            const payload = { 
+                username: document.getElementById('reg-user').value, 
+                password: pass, 
+                name: document.getElementById('reg-name').value, 
+                group: document.getElementById('reg-group').value 
+            };
+            
+            showLoading("กำลังลงทะเบียน...");
+            const res = await apiCall('register', payload, false); 
+            hideLoading();
+
+            if (res.status === 'success') { 
+                alert('ลงทะเบียนสำเร็จ! โปรดแจ้ง Admin เพื่อทำการอนุมัติสิทธิ์ก่อนเริ่มใช้งาน'); 
+                showLoginTab('login'); 
+            } else { 
+                alert(res.message); 
+            }
         }
 
         // --- API CALL FUNCTION ---
         async function apiCall(action, payload = {}, autoHideLoading = true) {
             if(autoHideLoading) showLoading("กำลังประมวลผล...");
+            
             if (!isRealMode) {
                 return new Promise((resolve) => {
                     setTimeout(() => {
@@ -254,9 +279,11 @@
                 apiCall('getHistory', {}, false),
                 apiCall('getUsers', {}, false)
             ]);
+            
             if(itemRes && itemRes.status === 'success') items = itemRes.items || [];
             if(eventRes && eventRes.status === 'success') events = eventRes.events || [];
             if(userRes && userRes.status === 'success') userList = userRes.users || [];
+            
             hideLoading();
         }
 
@@ -264,9 +291,15 @@
         function init() {
             localStorage.removeItem('customApiUrl'); 
             const storedUser = localStorage.getItem('soilAppUser');
-            isRealMode = true; updateStatusBadge();
+            isRealMode = true; 
+            updateStatusBadge();
+
             if (storedUser) {
-                try { currentUser = JSON.parse(storedUser); document.getElementById('login-screen').classList.add('hidden'); updateNavAndRedirect(); } 
+                try { 
+                    currentUser = JSON.parse(storedUser); 
+                    document.getElementById('login-screen').classList.add('hidden'); 
+                    updateNavAndRedirect(); 
+                } 
                 catch(e) { localStorage.removeItem('soilAppUser'); }
             }
         }
@@ -293,7 +326,8 @@
             let html = '<div class="flex justify-center items-center gap-2 mt-4 p-4">';
             html += `<button onclick="${onPageChangeName}(${currentPage - 1})" ${currentPage === 1 ? 'disabled class="opacity-50 cursor-not-allowed"' : ''} class="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50"><i class="fa-solid fa-chevron-left"></i></button>`;
             html += `<span class="text-sm text-gray-600">หน้า ${currentPage} จาก ${totalPages}</span>`;
-            html += `<button onclick="${onPageChangeName}(${currentPage + 1})" ${currentPage === totalPages ? 'disabled class="opacity-50 cursor-not-allowed"' : ''} class="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50"><i class="fa-solid fa-chevron-right"></i></button></div>`;
+            html += `<button onclick="${onPageChangeName}(${currentPage + 1})" ${currentPage === totalPages ? 'disabled class="opacity-50 cursor-not-allowed"' : ''} class="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50"><i class="fa-solid fa-chevron-right"></i></button>`;
+            html += '</div>';
             return html;
         }
 
@@ -336,20 +370,36 @@
             const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
             
             items.forEach(item => {
+                // 1. Received Stats (Receipts vs Samples)
                 if(item.dateReceived) {
                     const d = new Date(item.dateReceived);
-                    if(!isNaN(d.getTime())) {
-                        const key = `${monthNames[d.getMonth()]} ${d.getFullYear() + 543}`;
-                        if(!stats[key]) stats[key] = { received: 0, reported: 0, sort: d.getTime() };
-                        stats[key].received++;
+                    if(!isNaN(d)) {
+                         const m = d.getMonth();
+                         const y = d.getFullYear() + 543;
+                         const key = `${monthNames[m]} ${y.toString().slice(-2)}`; // e.g. "ม.ค. 67"
+                         if(!stats[key]) stats[key] = { receiptCount: 0, sampleCount: 0, totalAnalysisDays: 0, reportedCount: 0, sort: d.getTime() };
+                         
+                         stats[key].receiptCount++;
+                         stats[key].sampleCount += (Number(item.qty) || 0);
                     }
                 }
-                if(item.dateReported) {
-                    const d = new Date(item.dateReported);
-                    if(!isNaN(d.getTime())) {
-                        const key = `${monthNames[d.getMonth()]} ${d.getFullYear() + 543}`;
-                        if(!stats[key]) stats[key] = { received: 0, reported: 0, sort: d.getTime() };
-                        stats[key].reported++;
+                
+                // 2. Analysis Time (Based on Reported Date)
+                if (item.dateReported && item.dateReceived) {
+                    const dReport = new Date(item.dateReported);
+                    const dReceive = new Date(item.dateReceived);
+                    if (!isNaN(dReport) && !isNaN(dReceive)) {
+                         const m = dReport.getMonth();
+                         const y = dReport.getFullYear() + 543;
+                         const key = `${monthNames[m]} ${y.toString().slice(-2)}`;
+                         // Ensure key exists (might not be in received loop if received month != reported month)
+                         // But for simplicity, we attach to existing keys or create new if reported date is relevant
+                         if(!stats[key]) stats[key] = { receiptCount: 0, sampleCount: 0, totalAnalysisDays: 0, reportedCount: 0, sort: dReport.getTime() };
+                         
+                         const diffTime = Math.abs(dReport - dReceive);
+                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                         stats[key].totalAnalysisDays += diffDays;
+                         stats[key].reportedCount++;
                     }
                 }
             });
@@ -357,8 +407,13 @@
             // Sort months
             const sortedKeys = Object.keys(stats).sort((a,b) => stats[a].sort - stats[b].sort);
             const labels = sortedKeys;
-            const dataReceived = sortedKeys.map(k => stats[k].received);
-            const dataReported = sortedKeys.map(k => stats[k].reported);
+            
+            // Chart 2 Data
+            const dataReceipts = sortedKeys.map(k => stats[k].receiptCount);
+            const dataSamples = sortedKeys.map(k => stats[k].sampleCount);
+            
+            // Chart 3 Data (Average)
+            const dataAvgTime = sortedKeys.map(k => stats[k].reportedCount > 0 ? (stats[k].totalAnalysisDays / stats[k].reportedCount).toFixed(1) : 0);
 
             const html = `
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">แดชบอร์ดภาพรวม</h2>
@@ -369,28 +424,45 @@
                     <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-orange-500"><div class="flex justify-between items-center"><div><p class="text-sm text-gray-500">เลขรับที่กำลังถูกเบิก</p><p class="text-3xl font-bold text-gray-800">${borrowed}</p></div><i class="fa-solid fa-hand-holding text-3xl text-orange-200"></i></div></div>
                 </div>
                 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                      <div class="bg-white p-6 rounded-xl shadow-sm"><h3 class="font-bold mb-4">สถานะตัวอย่าง (เลขรับ)</h3><canvas id="statusChart"></canvas></div>
-                     <div class="bg-white p-6 rounded-xl shadow-sm"><h3 class="font-bold mb-4">สถิติการรับเข้าและรายงานผลรายเดือน</h3><canvas id="monthlyChart"></canvas></div>
+                     <div class="bg-white p-6 rounded-xl shadow-sm"><h3 class="font-bold mb-4">สถิติการรับตัวอย่างรายเดือน</h3><canvas id="monthlyChart"></canvas></div>
                 </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-sm"><h3 class="font-bold mb-4">ระยะเวลาวิเคราะห์เฉลี่ย (วัน)</h3><canvas id="avgTimeChart"></canvas></div>
             `;
             container.innerHTML = html;
             
             setTimeout(() => { 
-                const ctx = document.getElementById('statusChart').getContext('2d'); 
-                if (statusChartInstance) statusChartInstance.destroy(); 
-                statusChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: ['เลขรับพร้อมเบิก', 'เลขรับที่กำลังถูกเบิก'], datasets: [{ data: [available, borrowed], backgroundColor: ['#10b981', '#f97316'], borderWidth: 0 }] }, options: { responsive: true, cutout: '70%' } }); 
+                // Chart 1: Status
+                if (statusChartInstance) statusChartInstance.destroy();
+                const ctxStatus = document.getElementById('statusChart').getContext('2d');
+                statusChartInstance = new Chart(ctxStatus, { type: 'doughnut', data: { labels: ['เลขรับพร้อมเบิก', 'เลขรับที่กำลังถูกเบิก'], datasets: [{ data: [available, borrowed], backgroundColor: ['#10b981', '#f97316'], borderWidth: 0 }] }, options: { responsive: true, cutout: '70%' } }); 
                 
-                // New Monthly Chart
-                const ctxMonth = document.getElementById('monthlyChart').getContext('2d');
+                // Chart 2: Monthly Samples vs Receipts
                 if (monthlyChartInstance) monthlyChartInstance.destroy();
+                const ctxMonth = document.getElementById('monthlyChart').getContext('2d');
                 monthlyChartInstance = new Chart(ctxMonth, {
                     type: 'bar',
                     data: {
                         labels: labels,
                         datasets: [
-                            { label: 'รับเข้า', data: dataReceived, backgroundColor: '#3b82f6' },
-                            { label: 'รายงานผลแล้ว', data: dataReported, backgroundColor: '#10b981' }
+                            { label: 'จำนวนตัวอย่าง (Samples)', data: dataSamples, backgroundColor: '#0ea5e9' },
+                            { label: 'จำนวนเลขรับ (Receipts)', data: dataReceipts, backgroundColor: '#6366f1' }
+                        ]
+                    },
+                    options: { responsive: true, scales: { y: { beginAtZero: true } } }
+                });
+
+                // Chart 3: Avg Analysis Time
+                if (avgTimeChartInstance) avgTimeChartInstance.destroy();
+                const ctxAvg = document.getElementById('avgTimeChart').getContext('2d');
+                avgTimeChartInstance = new Chart(ctxAvg, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'เวลาเฉลี่ย (วัน)', data: dataAvgTime, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.2)', fill: true, tension: 0.4 }
                         ]
                     },
                     options: { responsive: true, scales: { y: { beginAtZero: true } } }
@@ -404,7 +476,7 @@
             
             // Shared Pagination Dropdown
             const paginationSelect = `
-                <select onchange="updateRowsPerPage(this.value)" class="p-2 border rounded text-xs ml-2">
+                <select onchange="updateRowsPerPage(this.value)" class="p-2 border rounded text-xs ml-2 bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none">
                     <option value="20" ${rowsPerPage == 20 ? 'selected' : ''}>20 แถว</option>
                     <option value="50" ${rowsPerPage == 50 ? 'selected' : ''}>50 แถว</option>
                     <option value="100" ${rowsPerPage == 100 ? 'selected' : ''}>100 แถว</option>
@@ -427,7 +499,7 @@
                 container.innerHTML = `<div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-orange-700">จำหน่ายตัวอย่าง (ครบกำหนด 60 วัน)</h2><div class="flex space-x-2"><div class="flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-32">${paginationSelect}</div>${canAct ? `<button onclick="deleteSelected('item')" id="btn-delete-dispose" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hidden flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-trash-can"></i> ลบที่เลือก</button>` : ''}<button onclick="exportDisposeXLSX()" class="btn-success text-sm"><i class="fa-solid fa-file-excel mr-2"></i>Export Excel</button><button onclick="exportDisposePDF()" class="btn-secondary text-sm"><i class="fa-solid fa-file-pdf mr-2"></i>Export PDF</button></div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-orange-50 text-orange-800 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this, \'btn-delete-dispose\')">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">วันที่รายงานผล</th><th class="p-4">เกินกำหนด (วัน)</th><th class="p-4">ความต้องการ</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
             } else if (currentView === 'report') {
                 const canAct = currentUser.username === 'admin' || currentUser.canReport === true;
-                container.innerHTML = `<h2 class="text-2xl font-bold mb-6 text-blue-700">รายงานผลการวิเคราะห์</h2><div class="flex justify-between mb-4 space-x-2"><div class="flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40">${paginationSelect}</div>${canAct ? `<button onclick="deleteSelected('item')" id="btn-delete-report" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hidden flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-trash-can"></i> ลบที่เลือก</button>` : ''}</div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-blue-50 text-blue-800 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this, \'btn-delete-report\')">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">วันที่รับ</th><th class="p-4">พารามิเตอร์</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
+                container.innerHTML = `<h2 class="text-2xl font-bold mb-6 text-blue-700">รายงานผลการวิเคราะห์</h2><div class="flex justify-between mb-4 space-x-2"><div class="flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40">${paginationSelect}</div>${canAct ? `<button onclick="deleteSelected('item')" id="btn-delete-report" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hidden flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-trash-can"></i> ลบที่เลือก</button>` : ''}</div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-blue-50 text-blue-800 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this)">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">วันที่รับ</th><th class="p-4">พารามิเตอร์</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
             } else if (currentView === 'users') {
                  if (currentUser.username !== 'admin') { container.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</div>`; return; }
                  container.innerHTML = `<h2 class="text-2xl font-bold mb-6 text-purple-700">จัดการผู้ใช้งาน (Admin)</h2><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-purple-50 text-purple-800 font-semibold border-b"><tr><th class="p-4">Username</th><th class="p-4">ชื่อ</th><th class="p-4">กลุ่ม</th><th class="p-4">สถานะ</th><th class="p-4 text-center">สิทธิ์รายงานผล</th><th class="p-4 text-center">สิทธิ์จัดการข้อมูล</th><th class="p-4 text-center">สิทธิ์จำหน่าย</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div></div>`;
