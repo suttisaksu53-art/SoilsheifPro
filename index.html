@@ -31,7 +31,6 @@
         .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
         #sidebar { transition: transform 0.3s ease-in-out; }
         #mobile-overlay { transition: opacity 0.3s ease-in-out; }
-        /* Checkbox Style */
         .item-checkbox { width: 1.2rem; height: 1.2rem; cursor: pointer; accent-color: #10b981; }
     </style>
 </head>
@@ -125,13 +124,7 @@
         
         let rowsPerPage = 20;
         let currentUser = null, items = [], events = [], userList = [], isRealMode = true;
-        // Corrected Chart Variables
-        let statusChartInstance = null, 
-            userActivityChartInstance = null, 
-            receivedSamplesChartInstance = null, 
-            receivedReceiptsChartInstance = null, 
-            reportedChartInstance = null;
-        
+        let statusChartInstance = null, monthlyChartInstance = null, receivedSamplesChartInstance = null, receivedReceiptsChartInstance = null, reportedChartInstance = null, userActivityChartInstance = null;
         let currentView = 'dashboard';
         let currentPage = 1, searchTerm = '';
         let docSettings = {};
@@ -140,38 +133,7 @@
         const mockEvents = [];
         const mockUsers = [{ username: 'admin', password: 'admin123', name: 'Admin System', group: 'IT Support', status: 'Approved', canReport: true, canManage: true, canDispose: true }];
 
-        // --- CORE FUNCTIONS ---
-        function showLoading(text = "กำลังโหลดข้อมูล...") {
-            const overlay = document.getElementById('loading-overlay');
-            const txt = document.getElementById('loading-text');
-            if (overlay && txt) {
-                txt.textContent = text;
-                overlay.classList.remove('hidden');
-            }
-        }
-
-        function hideLoading() {
-            const overlay = document.getElementById('loading-overlay');
-            if (overlay) overlay.classList.add('hidden');
-        }
-
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobile-overlay');
-            sidebar.classList.toggle('-translate-x-full');
-            overlay.classList.toggle('hidden');
-        }
-
-        function closeSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobile-overlay');
-            if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 768) {
-                sidebar.classList.add('-translate-x-full');
-                overlay.classList.add('hidden');
-            }
-        }
-
-        // --- AUTH FUNCTIONS ---
+        // --- AUTH FUNCTIONS (Placed top) ---
         async function handleLogin(e) {
             e.preventDefault(); 
             document.getElementById('login-error-msg').classList.add('hidden');
@@ -186,11 +148,9 @@
                     showLoading("กำลังเข้าสู่ระบบ...");
                     currentUser = res.user;
                     if (remember) localStorage.setItem('soilAppUser', JSON.stringify(currentUser));
-                    
                     document.getElementById('login-screen').classList.add('hidden');
                     renderSidebar();
                     updateNavUser();
-                    
                     showLoading("กำลังดาวน์โหลดข้อมูลล่าสุด...");
                     await refreshData();
                     router('dashboard');
@@ -200,247 +160,130 @@
                     errorDiv.querySelector('span').textContent = res.message || "เกิดข้อผิดพลาดในการเข้าสู่ระบบ";
                     errorDiv.classList.remove('hidden');
                 }
-            } catch (err) {
-                hideLoading();
-                alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message);
-            }
+            } catch (err) { hideLoading(); alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message); }
         }
 
         async function handleRegister(e) {
             e.preventDefault();
             const pass = document.getElementById('reg-pass').value;
             const passConfirm = document.getElementById('reg-pass-confirm').value;
-
-            if (pass !== passConfirm) {
-                alert("รหัสผ่านไม่ตรงกัน กรุณาตรวจสอบอีกครั้ง");
-                return;
-            }
-
+            if (pass !== passConfirm) { alert("รหัสผ่านไม่ตรงกัน กรุณาตรวจสอบอีกครั้ง"); return; }
             const payload = { 
                 username: document.getElementById('reg-user').value, 
                 password: pass, 
                 name: document.getElementById('reg-name').value, 
                 group: document.getElementById('reg-group').value 
             };
-            
             showLoading("กำลังลงทะเบียน...");
             const res = await apiCall('register', payload, false); 
             hideLoading();
-
-            if (res.status === 'success') { 
-                alert('ลงทะเบียนสำเร็จ! โปรดแจ้ง Admin เพื่อทำการอนุมัติสิทธิ์ก่อนเริ่มใช้งาน'); 
-                showLoginTab('login'); 
-            } else { 
-                alert(res.message); 
-            }
+            if (res.status === 'success') { alert('ลงทะเบียนสำเร็จ! โปรดแจ้ง Admin เพื่อทำการอนุมัติสิทธิ์ก่อนเริ่มใช้งาน'); showLoginTab('login'); } else { alert(res.message); }
         }
 
-        // --- API CALL FUNCTION ---
-        async function apiCall(action, payload = {}, autoHideLoading = true) {
-            if(autoHideLoading) showLoading("กำลังประมวลผล...");
-            
-            if (!isRealMode) {
-                return new Promise((resolve) => {
-                    setTimeout(() => {
-                        if(autoHideLoading) hideLoading();
-                        let result = { status: 'success' };
-                        // Mock handlers
-                        if (action === 'login') { const user = mockUsers.find(u => u.username === payload.username && u.password === payload.password); if (user) result.user = user; else result = { status: 'error', message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }; }
-                        else if (action === 'getItems') { result.items = [...mockItems]; }
-                        else if (action === 'getHistory') { result.events = [...mockEvents]; }
-                        else if (action === 'getUsers') { result.users = mockUsers; }
-                        else if (action === 'getSettings') { result.settings = docSettings; }
-                        else if (action === 'saveSettings') { 
-                             if(!docSettings[payload.type]) docSettings[payload.type] = {};
-                             docSettings[payload.type] = payload.settings;
-                             result.message = "Saved"; 
-                        }
-                        else if (action === 'deleteItem') { const idx = mockItems.findIndex(i => i.id === payload.id); if(idx > -1) mockItems.splice(idx, 1); result.message = "ลบสำเร็จ"; }
-                        resolve(result);
-                    }, MOCK_DELAY);
-                });
-            } else {
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 30000); 
-                    const response = await fetch(API_URL, {
-                        method: 'POST',
-                        redirect: 'follow',
-                        headers: { "Content-Type": "text/plain;charset=utf-8" },
-                        body: JSON.stringify({ action, ...payload }),
-                        signal: controller.signal
-                    });
-                    clearTimeout(timeoutId);
-                    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-                    const text = await response.text();
-                    try {
-                        const data = JSON.parse(text);
-                        if(autoHideLoading) hideLoading();
-                        return data;
-                    } catch (jsonErr) { throw new Error("Invalid JSON response from server"); }
-                } catch (e) {
-                    if(autoHideLoading) hideLoading();
-                    console.error("API Call Error:", e);
-                    return { status: 'error', message: e.message };
-                }
-            }
+        // --- CORE HELPER FUNCTIONS ---
+        function showLoading(text="กำลังโหลดข้อมูล...") { document.getElementById('loading-text').textContent=text; document.getElementById('loading-overlay').classList.remove('hidden'); }
+        function hideLoading() { document.getElementById('loading-overlay').classList.add('hidden'); }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('mobile-overlay').classList.toggle('hidden'); }
+        function closeSidebar() { if(window.innerWidth < 768) { document.getElementById('sidebar').classList.add('-translate-x-full'); document.getElementById('mobile-overlay').classList.add('hidden'); } }
+        function updateStatusBadge() { const b=document.getElementById('status-badge'); b.classList.remove('hidden'); b.className = isRealMode?'status-badge status-online':'status-badge status-demo'; b.innerHTML = isRealMode?'<i class="fa-solid fa-wifi"></i> <span>ออนไลน์</span>':'<i class="fa-solid fa-triangle-exclamation"></i> <span>โหมดจำลอง</span>'; }
+        function formatDateTh(d,t=true) { if(!d)return'-'; const dt=new Date(d); if(isNaN(dt))return d; const o={year:'numeric',month:'short',day:'numeric'}; if(t){o.hour='2-digit';o.minute='2-digit';o.hour12=false;} return dt.toLocaleString('th-TH',o); }
+        function formatDateForPDF(d) { if(!d)return'-'; const dt=new Date(d); if(isNaN(dt))return d; return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`; }
+        function calculateDaysRemaining(r) { if(!r)return-1; return Math.ceil(Math.abs(new Date()-new Date(r))/(1000*60*60*24)); }
+        function updateRowsPerPage(v) { rowsPerPage=parseInt(v); currentPage=1; renderContent(); }
+        function renderPagination(total, funcName) { const pages=Math.ceil(total/rowsPerPage); if(pages<=1)return''; return `<div class="flex justify-center items-center gap-2 mt-4 p-4"><button onclick="${funcName}(${currentPage-1})" ${currentPage===1?'disabled class="opacity-50 cursor-not-allowed"':''} class="px-3 py-1 bg-white border rounded hover:bg-gray-50"><i class="fa-solid fa-chevron-left"></i></button><span class="text-sm text-gray-600">หน้า ${currentPage} จาก ${pages}</span><button onclick="${funcName}(${currentPage+1})" ${currentPage===pages?'disabled class="opacity-50 cursor-not-allowed"':''} class="px-3 py-1 bg-white border rounded hover:bg-gray-50"><i class="fa-solid fa-chevron-right"></i></button></div>`; }
+        function changePage(n) { currentPage=n; updateTableData(); }
+        function handleSearch(t) { searchTerm=t.toLowerCase(); currentPage=1; updateTableData(); }
+        function getUserInfo(u) { if(u==='admin')return {name:'Admin System',group:'IT Support'}; const f=userList.find(us=>us.username===u); return f?{name:f.name,group:f.group}:{name:u,group:'-'}; }
+        function init() { localStorage.removeItem('customApiUrl'); const u=localStorage.getItem('soilAppUser'); isRealMode=true; updateStatusBadge(); if(u){ try{currentUser=JSON.parse(u); document.getElementById('login-screen').classList.add('hidden'); updateNavAndRedirect();}catch(e){localStorage.removeItem('soilAppUser');} } }
+        function updateNavAndRedirect() { renderSidebar(); updateNavUser(); refreshData().then(()=>router('dashboard')); }
+        function logout() { localStorage.removeItem('soilAppUser'); location.reload(); }
+        function showLoginTab(t) { document.getElementById('login-error-msg').classList.add('hidden'); document.getElementById('login-form').classList.toggle('hidden', t!=='login'); document.getElementById('register-form').classList.toggle('hidden', t!=='register'); document.getElementById('tab-login').className = t==='login'?"flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600":"flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; document.getElementById('tab-register').className = t==='register'?"flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600":"flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; }
+        function updateNavUser() { if(currentUser) document.getElementById('nav-username').textContent=currentUser.name; }
+        
+        async function loadThaiFont(doc) { try { const res = await fetch("https://raw.githubusercontent.com/google/fonts/main/ofl/sarabun/Sarabun-Regular.ttf"); if (!res.ok) throw new Error("Font fetch failed"); const blob = await res.blob(); const reader = new FileReader(); return new Promise(resolve => { reader.onload = function() { const base64 = reader.result.split(',')[1]; doc.addFileToVFS('Sarabun-Regular.ttf', base64); doc.addFont('Sarabun-Regular.ttf', 'Sarabun', 'normal'); doc.setFont('Sarabun'); resolve(); }; reader.readAsDataURL(blob); }); } catch (e) { console.error("Error loading font:", e); alert("ไม่สามารถโหลดฟอนต์ภาษาไทยได้ (Network Error) ระบบจะใช้ฟอนต์มาตรฐานแทน"); } }
+
+        // --- API & DATA ---
+        async function apiCall(action, payload={}, autoHide=true) {
+            if(autoHide) showLoading("กำลังประมวลผล...");
+            if(!isRealMode) { return new Promise(r=>{ setTimeout(()=>{ if(autoHide)hideLoading(); r({status:'success'}); }, MOCK_DELAY); }); }
+            try {
+                const c = new AbortController(); const t = setTimeout(()=>c.abort(), 60000);
+                const r = await fetch(API_URL, { method:'POST', redirect:'follow', headers:{ "Content-Type":"text/plain;charset=utf-8" }, body:JSON.stringify({action,...payload}), signal:c.signal });
+                clearTimeout(t); if(!r.ok) throw new Error(`HTTP ${r.status}`); const txt=await r.text();
+                const d=JSON.parse(txt); if(autoHide)hideLoading(); return d;
+            } catch(e) { if(autoHide)hideLoading(); console.error(e); return {status:'error', message:e.name==='AbortError'?"Timeout":e.message}; }
         }
 
         async function refreshData() {
-            const [itemRes, eventRes, userRes, settingRes] = await Promise.all([
-                apiCall('getItems', {}, false),
-                apiCall('getHistory', {}, false),
-                apiCall('getUsers', {}, false),
-                apiCall('getSettings', {}, false)
-            ]);
-            
-            if(itemRes && itemRes.status === 'success') items = itemRes.items || [];
-            if(eventRes && eventRes.status === 'success') events = eventRes.events || [];
-            if(userRes && userRes.status === 'success') userList = userRes.users || [];
-            if(settingRes && settingRes.status === 'success' && settingRes.settings) docSettings = settingRes.settings;
-            
+            const [i, e, u, s] = await Promise.all([apiCall('getItems',{},false), apiCall('getHistory',{},false), apiCall('getUsers',{},false), apiCall('getSettings',{},false)]);
+            if(i.status==='success') items=i.items||[]; if(e.status==='success') events=e.events||[]; if(u.status==='success') userList=u.users||[]; if(s.status==='success') docSettings=s.settings||{};
             hideLoading();
         }
 
-        // --- INIT & UTILS ---
-        function init() {
-            localStorage.removeItem('customApiUrl'); 
-            const storedUser = localStorage.getItem('soilAppUser');
-            isRealMode = true; 
-            updateStatusBadge();
-
-            if (storedUser) {
-                try { 
-                    currentUser = JSON.parse(storedUser); 
-                    document.getElementById('login-screen').classList.add('hidden'); 
-                    updateNavAndRedirect(); 
-                } 
-                catch(e) { localStorage.removeItem('soilAppUser'); }
-            }
-        }
-
-        function updateNavAndRedirect() { renderSidebar(); updateNavUser(); refreshData().then(() => router('dashboard')); }
-        function logout() { localStorage.removeItem('soilAppUser'); location.reload(); }
-        function showLoginTab(tab) { document.getElementById('login-error-msg').classList.add('hidden'); if (tab === 'login') { document.getElementById('login-form').classList.remove('hidden'); document.getElementById('register-form').classList.add('hidden'); document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; } else { document.getElementById('login-form').classList.add('hidden'); document.getElementById('register-form').classList.remove('hidden'); document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; } }
-        function updateNavUser() { if(currentUser) document.getElementById('nav-username').textContent = currentUser.name; }
-        function getUserInfo(username) { if (username === 'admin') return { name: 'Admin System', group: 'IT Support' }; const u = userList.find(user => user.username === username); return u ? { name: u.name, group: u.group } : { name: username, group: '-' }; }
-        function updateStatusBadge() { const badge = document.getElementById('status-badge'); badge.classList.remove('hidden'); if (isRealMode) { badge.className = 'status-badge status-online'; badge.innerHTML = '<i class="fa-solid fa-wifi"></i> <span>ออนไลน์ (Google Sheet)</span>'; } else { badge.className = 'status-badge status-demo'; badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> <span>โหมดจำลอง (ไม่บันทึก)</span>'; } }
-        function formatDateTh(dateString, includeTime = true) { if (!dateString) return '-'; const date = new Date(dateString); if (isNaN(date.getTime())) return dateString; const options = { year: 'numeric', month: 'short', day: 'numeric' }; if (includeTime) { options.hour = '2-digit'; options.minute = '2-digit'; options.hour12 = false; } return date.toLocaleString('th-TH', options); }
-        function formatDateForPDF(dateString) { if (!dateString) return '-'; const date = new Date(dateString); if (isNaN(date.getTime())) return dateString; const day = String(date.getDate()).padStart(2, '0'); const month = String(date.getMonth() + 1).padStart(2, '0'); const year = date.getFullYear(); const hours = String(date.getHours()).padStart(2, '0'); const minutes = String(date.getMinutes()).padStart(2, '0'); return `${day}/${month}/${year} ${hours}:${minutes}`; }
-        function calculateDaysRemaining(dateReported) { if (!dateReported) return -1; const reported = new Date(dateReported); const now = new Date(); const diffTime = Math.abs(now - reported); const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); return diffDays; }
-
-        function updateRowsPerPage(val) {
-            rowsPerPage = parseInt(val);
-            currentPage = 1;
-            renderContent();
-        }
-
-        function renderPagination(totalItems, onPageChangeName) {
-            const totalPages = Math.ceil(totalItems / rowsPerPage);
-            if (totalPages <= 1) return '';
-            let html = '<div class="flex justify-center items-center gap-2 mt-4 p-4">';
-            html += `<button onclick="${onPageChangeName}(${currentPage - 1})" ${currentPage === 1 ? 'disabled class="opacity-50 cursor-not-allowed"' : ''} class="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50"><i class="fa-solid fa-chevron-left"></i></button>`;
-            html += `<span class="text-sm text-gray-600">หน้า ${currentPage} จาก ${totalPages}</span>`;
-            html += `<button onclick="${onPageChangeName}(${currentPage + 1})" ${currentPage === totalPages ? 'disabled class="opacity-50 cursor-not-allowed"' : ''} class="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50"><i class="fa-solid fa-chevron-right"></i></button>`;
-            html += '</div>';
-            return html;
-        }
-
-        function changePage(newPage) { currentPage = newPage; updateTableData(); }
-        function filterBorrowList() { const input = document.getElementById('borrow-search-input'); const filter = input.value.toLowerCase(); const rows = document.getElementsByClassName('borrow-item-row'); for (let i = 0; i < rows.length; i++) { const text = rows[i].textContent || rows[i].innerText; if (text.toLowerCase().indexOf(filter) > -1) rows[i].style.display = ""; else rows[i].style.display = "none"; } }
-        function filterTable(inputId, tableId) { const input = document.getElementById(inputId); const filter = input.value.toLowerCase(); const table = document.getElementById(tableId); const tr = table.getElementsByTagName("tr"); for (let i = 1; i < tr.length; i++) { const tdArr = tr[i].getElementsByTagName("td"); let found = false; for(let j=0; j<tdArr.length; j++) { if (tdArr[j]) { if (tdArr[j].textContent.toLowerCase().indexOf(filter) > -1) { found = true; break; } } } tr[i].style.display = found ? "" : "none"; } }
-        function handleSearch(term) { searchTerm = term.toLowerCase(); currentPage = 1; updateTableData(); }
-
-        // --- RENDER LOGIC ---
+        // --- RENDER ---
         function renderSidebar() {
-            const nav = document.getElementById('nav-container');
-            if (!currentUser) return;
-            const isAdmin = currentUser.username === 'admin';
-            const canReport = isAdmin || currentUser.canReport === true;
-            let html = `<button id="nav-dashboard" onclick="router('dashboard')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors"><i class="fa-solid fa-chart-pie w-6"></i> <span>แดชบอร์ด</span></button><button id="nav-borrow" onclick="router('borrow')" class="nav-item-highlight w-full text-left px-4 py-3 rounded-lg flex items-center space-x-3 transition-colors shadow-sm mb-2"><i class="fa-solid fa-hand-holding w-6"></i> <span>เบิก-คืน ตัวอย่าง</span></button><button id="nav-status" onclick="router('status')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors"><i class="fa-solid fa-list-check w-6"></i> <span>สถานะตัวอย่างทั้งหมด</span></button><button id="nav-report" onclick="router('report')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-blue-300"><i class="fa-solid fa-clipboard-check w-6"></i> <span>รายงานผล</span></button><button id="nav-dispose" onclick="router('dispose')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-orange-300"><i class="fa-solid fa-trash-can-arrow-up w-6"></i> <span>จำหน่ายตัวอย่าง</span></button><button id="nav-return-customer" onclick="router('return_customer')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-teal-300"><i class="fa-solid fa-rotate-left"></i> <span>การคืนตัวอย่าง</span></button><button id="nav-items" onclick="router('items')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-emerald-300"><i class="fa-solid fa-box-archive w-6"></i> <span>จัดการตัวอย่างดิน</span></button>`;
-            if (isAdmin) html += `<div class="my-2 border-t border-slate-600"></div><button id="nav-users" onclick="router('users')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-purple-300"><i class="fa-solid fa-users-gear w-6"></i> <span>จัดการผู้ใช้งาน (Admin)</span></button>`;
-            html += `<button id="nav-history" onclick="router('history')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors"><i class="fa-solid fa-clock-rotate-left w-6"></i> <span>ประวัติ & รายงาน</span></button>`;
-            nav.innerHTML = html;
+            if(!currentUser) return;
+            const html = `
+            <button id="nav-dashboard" onclick="router('dashboard')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors"><i class="fa-solid fa-chart-pie w-6"></i> <span>แดชบอร์ด</span></button>
+            <button id="nav-borrow" onclick="router('borrow')" class="nav-item-highlight w-full text-left px-4 py-3 rounded-lg flex items-center space-x-3 transition-colors shadow-sm mb-2"><i class="fa-solid fa-hand-holding w-6"></i> <span>เบิก-คืน ตัวอย่าง</span></button>
+            <button id="nav-status" onclick="router('status')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors"><i class="fa-solid fa-list-check w-6"></i> <span>สถานะตัวอย่างทั้งหมด</span></button>
+            <button id="nav-report" onclick="router('report')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-blue-300"><i class="fa-solid fa-clipboard-check w-6"></i> <span>รายงานผล</span></button>
+            <button id="nav-dispose" onclick="router('dispose')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-orange-300"><i class="fa-solid fa-trash-can-arrow-up w-6"></i> <span>จำหน่ายตัวอย่าง</span></button>
+            <button id="nav-return-customer" onclick="router('return_customer')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-teal-300"><i class="fa-solid fa-rotate-left"></i> <span>การคืนตัวอย่าง</span></button>
+            <button id="nav-items" onclick="router('items')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-emerald-300"><i class="fa-solid fa-box-archive w-6"></i> <span>จัดการตัวอย่างดิน</span></button>
+            ${currentUser.username==='admin'?`<div class="my-2 border-t border-slate-600"></div><button id="nav-users" onclick="router('users')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-purple-300"><i class="fa-solid fa-users-gear w-6"></i> <span>จัดการผู้ใช้งาน (Admin)</span></button>`:''}
+            <button id="nav-history" onclick="router('history')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors"><i class="fa-solid fa-clock-rotate-left w-6"></i> <span>ประวัติ & รายงาน</span></button>`;
+            document.getElementById('nav-container').innerHTML = html;
         }
 
-        async function router(viewName) {
-            currentView = viewName; currentPage = 1; searchTerm = ''; closeSidebar();
-            
-            const titles = { 'dashboard': 'แดชบอร์ดภาพรวม', 'status': 'สถานะตัวอย่างดิน', 'items': 'จัดการตัวอย่างดิน', 'borrow': 'ระบบเบิก-คืน ตัวอย่าง', 'return_customer': 'การคืนตัวอย่าง', 'dispose': 'จำหน่ายตัวอย่าง', 'report': 'รายงานผลการวิเคราะห์', 'history': 'ประวัติการใช้งาน', 'users': 'จัดการผู้ใช้งาน', 'profile': 'ข้อมูลส่วนตัว' };
-            const headerTitle = document.getElementById('header-title');
-            if(headerTitle) headerTitle.textContent = titles[viewName] || 'Soilsheif Pro System';
+        async function router(view) {
+            currentView = view; currentPage = 1; searchTerm = ''; closeSidebar();
+            const titles = { 'dashboard': 'แดชบอร์ดภาพรวม', 'status': 'สถานะตัวอย่างดิน', 'items': 'จัดการตัวอย่างดิน', 'borrow': 'เบิก-คืน', 'return_customer': 'การคืนตัวอย่าง', 'dispose': 'จำหน่ายตัวอย่าง', 'report': 'รายงานผล', 'history': 'ประวัติ', 'users': 'จัดการผู้ใช้', 'profile': 'ข้อมูลส่วนตัว' };
+            document.getElementById('header-title').textContent = titles[view] || 'Soilsheif Pro';
+            document.querySelectorAll('.nav-item, .nav-item-highlight').forEach(e => e.classList.remove('active', 'bg-emerald-600'));
+            const active = document.getElementById('nav-'+(view==='return_customer'?'return-customer':view));
+            if(active) active.classList.add('active');
 
-            const container = document.getElementById('content-area');
-            document.querySelectorAll('.nav-item, .nav-item-highlight').forEach(el => { el.classList.remove('active'); el.classList.remove('bg-emerald-600'); });
-            const activeNav = document.getElementById(`nav-${viewName}`);
-            if(activeNav) activeNav.classList.add('active');
-
-            if (viewName === 'dashboard') renderDashboard(container);
+            if (view === 'dashboard') renderDashboard(document.getElementById('content-area'));
             else renderContent();
         }
 
         function renderDashboard(container) {
             const totalReceipts = items.length;
-            const totalQty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+            const totalQty = items.reduce((s, i) => s + (Number(i.qty)||0), 0);
             const borrowed = items.filter(i => i.status === 'Borrowed').length;
             const available = totalReceipts - borrowed;
-
-            const stats = {};
-            const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+            const mn = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+            const stats = {}; const ua = {}; const now = new Date();
             
-            // Collect User Activity Stats (Monthly Reset Logic)
-            const userActivity = {};
-            const now = new Date();
-            const currentMonth = now.getMonth();
-            const currentYear = now.getFullYear();
-
+            // User Activity (Monthly)
             events.forEach(e => {
-                const eventDate = new Date(e.date);
-                if (eventDate.getMonth() === currentMonth && eventDate.getFullYear() === currentYear) {
-                    const u = e.user || 'Unknown';
-                    userActivity[u] = (userActivity[u] || 0) + 1;
+                const d = new Date(e.date);
+                if(d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear()) {
+                    const u = e.user || 'Unknown'; ua[u] = (ua[u]||0)+1;
                 }
             });
-            const sortedUsers = Object.keys(userActivity).sort((a,b) => userActivity[b] - userActivity[a]).slice(0, 5);
-            const userData = sortedUsers.map(u => userActivity[u]);
-            
-            items.forEach(item => {
-                if(item.dateReceived) {
-                    const d = new Date(item.dateReceived);
-                    if(!isNaN(d)) {
-                         const m = d.getMonth();
-                         const y = d.getFullYear() + 543;
-                         const k = `${monthNames[m]} ${y.toString().slice(-2)}`; 
-                         if(!stats[k]) stats[k] = { receiptCount: 0, sampleCount: 0, reportedSampleCount: 0, sort: d.getTime() };
-                         stats[k].receiptCount++;
-                         stats[k].sampleCount += (Number(item.qty) || 0);
-                    }
+            const topUsers = Object.keys(ua).sort((a,b)=>ua[b]-ua[a]).slice(0,5);
+            const topUserData = topUsers.map(u=>ua[u]);
+
+            items.forEach(i => {
+                if(i.dateReceived) {
+                    const d = new Date(i.dateReceived); if(!isNaN(d)) { const k = `${mn[d.getMonth()]} ${d.getFullYear()+543}`; if(!stats[k]) stats[k] = { rec:0, smp:0, repSmp:0, sort:d.getTime() }; stats[k].rec++; stats[k].smp+=(Number(i.qty)||0); }
                 }
-                
-                if (item.dateReported) {
-                    const d = new Date(item.dateReported);
-                    if(!isNaN(d)) {
-                         const m = d.getMonth();
-                         const y = d.getFullYear() + 543;
-                         const k = `${monthNames[m]} ${y.toString().slice(-2)}`; 
-                         if(!stats[k]) stats[k] = { receiptCount: 0, sampleCount: 0, reportedSampleCount: 0, sort: d.getTime() };
-                         stats[k].reportedSampleCount += (Number(item.qty) || 0);
-                    }
+                if(i.dateReported) {
+                    const d = new Date(i.dateReported); if(!isNaN(d)) { const k = `${mn[d.getMonth()]} ${d.getFullYear()+543}`; if(!stats[k]) stats[k] = { rec:0, smp:0, repSmp:0, sort:d.getTime() }; stats[k].repSmp+=(Number(i.qty)||0); }
                 }
             });
 
-            const sortedKeys = Object.keys(stats).sort((a,b) => stats[a].sort - stats[b].sort);
-            const labels = sortedKeys;
-            const dataReceipts = sortedKeys.map(k => stats[k].receiptCount);
-            const dataSamples = sortedKeys.map(k => stats[k].sampleCount);
-            const dataReportedSamples = sortedKeys.map(k => stats[k].reportedSampleCount);
+            const keys = Object.keys(stats).sort((a,b)=>stats[a].sort-stats[b].sort);
+            const dRec = keys.map(k=>stats[k].rec); const dSmp = keys.map(k=>stats[k].smp); const dRep = keys.map(k=>stats[k].repSmp);
 
-            const html = `
+            container.innerHTML = `
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-emerald-500"><div class="flex justify-between items-center"><div><p class="text-sm text-gray-500">จำนวนเลขรับทั้งหมด</p><p class="text-3xl font-bold text-gray-800">${totalReceipts}</p></div><i class="fa-solid fa-layer-group text-3xl text-emerald-200"></i></div></div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-cyan-500"><div class="flex justify-between items-center"><div><p class="text-sm text-gray-500">จำนวนตัวอย่างดินทั้งหมด</p><p class="text-3xl font-bold text-gray-800">${totalQty}</p></div><i class="fa-solid fa-cubes text-3xl text-cyan-200"></i></div></div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500"><div class="flex justify-between items-center"><div><p class="text-sm text-gray-500">เลขรับพร้อมเบิก</p><p class="text-3xl font-bold text-gray-800">${available}</p></div><i class="fa-solid fa-check-circle text-3xl text-blue-200"></i></div></div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-orange-500"><div class="flex justify-between items-center"><div><p class="text-sm text-gray-500">เลขรับที่กำลังถูกเบิก</p><p class="text-3xl font-bold text-gray-800">${borrowed}</p></div><i class="fa-solid fa-hand-holding text-3xl text-orange-200"></i></div></div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-emerald-500"><div><p class="text-sm text-gray-500">จำนวนเลขรับทั้งหมด</p><p class="text-3xl font-bold">${totalReceipts}</p></div></div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-cyan-500"><div><p class="text-sm text-gray-500">จำนวนตัวอย่างดินทั้งหมด</p><p class="text-3xl font-bold">${totalQty}</p></div></div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500"><div><p class="text-sm text-gray-500">เลขรับพร้อมเบิก</p><p class="text-3xl font-bold">${available}</p></div></div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-orange-500"><div><p class="text-sm text-gray-500">เลขรับที่กำลังถูกเบิก</p><p class="text-3xl font-bold">${borrowed}</p></div></div>
                 </div>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -469,141 +312,66 @@
                     </div>
                 </div>
             `;
-            container.innerHTML = html;
-            
-            setTimeout(() => { 
-                if (statusChartInstance) statusChartInstance.destroy();
-                const ctxStatus = document.getElementById('statusChart').getContext('2d');
+
+            setTimeout(() => {
                 Chart.register(ChartDataLabels);
-                statusChartInstance = new Chart(ctxStatus, { 
-                    type: 'doughnut', 
-                    data: { labels: ['เลขรับพร้อมเบิก', 'เลขรับที่กำลังถูกเบิก'], datasets: [{ data: [available, borrowed], backgroundColor: ['#10b981', '#f97316'], borderWidth: 0 }] }, 
-                    options: { 
-                        responsive: true, 
-                        cutout: '70%',
-                        plugins: {
-                            datalabels: {
-                                color: '#fff',
-                                font: { weight: 'bold', size: 14 }
-                            }
-                        }
-                    } 
-                }); 
+                if(statusChartInstance) statusChartInstance.destroy();
+                statusChartInstance = new Chart(document.getElementById('statusChart').getContext('2d'), { type:'doughnut', data:{labels:['ว่าง','ถูกเบิก'],datasets:[{data:[available,borrowed],backgroundColor:['#10b981','#f97316']}]}, options:{plugins:{datalabels:{color:'#fff',font:{weight:'bold',size:14}}}} });
                 
                 if(userActivityChartInstance) userActivityChartInstance.destroy();
-                const ctxUser = document.getElementById('userActivityChart').getContext('2d');
-                userActivityChartInstance = new Chart(ctxUser, {
-                    type: 'bar',
-                    indexAxis: 'y',
-                    data: {
-                        labels: sortedUsers,
-                        datasets: [{ 
-                            label: 'จำนวนครั้ง', 
-                            data: userData, 
-                            backgroundColor: ['#8b5cf6', '#ec4899', '#f43f5e', '#a855f7', '#6366f1'], 
-                            borderRadius: 4 
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', color: '#666', font: { weight: 'bold' } } }
-                    }
-                });
+                userActivityChartInstance = new Chart(document.getElementById('userActivityChart'), { type:'bar', indexAxis:'y', data:{labels:topUsers,datasets:[{label:'ครั้ง',data:topUserData,backgroundColor:['#8b5cf6','#ec4899','#f43f5e','#a855f7','#6366f1'],borderRadius:4}]}, options:{plugins:{legend:{display:false},datalabels:{anchor:'end',align:'end'}}} });
+                
+                if(receivedSamplesChartInstance) receivedSamplesChartInstance.destroy();
+                receivedSamplesChartInstance = new Chart(document.getElementById('receivedSamplesChart').getContext('2d'), { type:'bar', data:{labels:keys,datasets:[{label:'ตัวอย่าง',data:dSmp,backgroundColor:'#0ea5e9',borderRadius:4}]}, options:{maintainAspectRatio:false,plugins:{datalabels:{anchor:'end',align:'top'}}} });
 
-                if (receivedSamplesChartInstance) receivedSamplesChartInstance.destroy();
-                const ctxRecSamples = document.getElementById('receivedSamplesChart').getContext('2d');
-                receivedSamplesChartInstance = new Chart(ctxRecSamples, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [{ label: 'จำนวนตัวอย่าง', data: dataSamples, backgroundColor: '#0ea5e9', borderRadius: 4 }]
-                    },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        scales: { y: { beginAtZero: true } },
-                        plugins: { datalabels: { anchor: 'end', align: 'top', color: '#666', font: { weight: 'bold' } } }
-                    }
-                });
+                if(receivedReceiptsChartInstance) receivedReceiptsChartInstance.destroy();
+                receivedReceiptsChartInstance = new Chart(document.getElementById('receivedReceiptsChart').getContext('2d'), { type:'bar', data:{labels:keys,datasets:[{label:'เลขรับ',data:dRec,backgroundColor:'#8b5cf6',borderRadius:4}]}, options:{maintainAspectRatio:false,plugins:{datalabels:{anchor:'end',align:'top'}}} });
 
-                if (receivedReceiptsChartInstance) receivedReceiptsChartInstance.destroy();
-                const ctxRecReceipts = document.getElementById('receivedReceiptsChart').getContext('2d');
-                receivedReceiptsChartInstance = new Chart(ctxRecReceipts, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [{ label: 'จำนวนเลขรับ', data: dataReceipts, backgroundColor: '#8b5cf6', borderRadius: 4 }]
-                    },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        scales: { y: { beginAtZero: true } },
-                        plugins: { datalabels: { anchor: 'end', align: 'top', color: '#666', font: { weight: 'bold' } } }
-                    }
-                });
-
-                if (reportedChartInstance) reportedChartInstance.destroy();
-                const ctxReport = document.getElementById('reportedChart').getContext('2d');
-                reportedChartInstance = new Chart(ctxReport, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [{ label: 'จำนวนตัวอย่างที่รายงานผล', data: dataReportedSamples, backgroundColor: '#10b981', borderRadius: 4 }]
-                    },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        scales: { y: { beginAtZero: true } },
-                        plugins: { datalabels: { anchor: 'end', align: 'top', color: '#666', font: { weight: 'bold' } } }
-                    }
-                });
+                if(reportedChartInstance) reportedChartInstance.destroy();
+                reportedChartInstance = new Chart(document.getElementById('reportedChart').getContext('2d'), { type:'bar', data:{labels:keys,datasets:[{label:'ตัวอย่างรายงานผล',data:dRep,backgroundColor:'#10b981',borderRadius:4}]}, options:{maintainAspectRatio:false,plugins:{datalabels:{anchor:'end',align:'top'}}} });
             }, 100);
         }
 
         function renderContent() {
             const container = document.getElementById('content-area');
-            const canAct = currentUser.username === 'admin' || currentUser.canManage === true;
-            const paginationSelect = `
-                <select onchange="updateRowsPerPage(this.value)" class="p-2 border rounded text-xs ml-2 bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none">
-                    <option value="20" ${rowsPerPage == 20 ? 'selected' : ''}>20 แถว</option>
-                    <option value="50" ${rowsPerPage == 50 ? 'selected' : ''}>50 แถว</option>
-                    <option value="100" ${rowsPerPage == 100 ? 'selected' : ''}>100 แถว</option>
-                    <option value="10000" ${rowsPerPage == 10000 ? 'selected' : ''}>ทั้งหมด</option>
-                </select>
-            `;
-
             const isAdmin = currentUser.username === 'admin';
-            let settingsBtn = '';
+            const canAct = isAdmin || (currentView === 'items' && currentUser.canManage) || (currentView === 'report' && currentUser.canReport) || ((currentView === 'dispose' || currentView === 'return_customer') && currentUser.canDispose);
+            const paginationSelect = `<select onchange="updateRowsPerPage(this.value)" class="p-2 border rounded text-xs ml-2 bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none"><option value="20" ${rowsPerPage==20?'selected':''}>20 แถว</option><option value="50" ${rowsPerPage==50?'selected':''}>50 แถว</option><option value="100" ${rowsPerPage==100?'selected':''}>100 แถว</option><option value="10000" ${rowsPerPage==10000?'selected':''}>ทั้งหมด</option></select>`;
+            
+            let btnSettings = '';
             if (isAdmin && ['items', 'report', 'dispose', 'return_customer', 'history', 'users'].includes(currentView)) {
-                settingsBtn = `<button onclick="openSettingsModal('${currentView}')" class="ml-2 btn-secondary text-xs px-2 py-1"><i class="fa-solid fa-cog"></i></button>`;
+                btnSettings = `<button onclick="openSettingsModal('${currentView}')" class="ml-2 btn-secondary text-xs px-2 py-1"><i class="fa-solid fa-cog"></i></button>`;
             }
             
             const exportGroup = `
                 <div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1">
                     ${currentView !== 'users' ? `<button onclick="${currentView === 'history' ? 'exportHistoryXLSX()' : (currentView.includes('dispose') || currentView === 'return_customer' ? `exportDisposeXLSX('${currentView === 'return_customer' ? 'return' : 'dispose'}')` : 'exportItemsXLSX()')}" class="px-3 py-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Export Excel"><i class="fa-solid fa-file-excel text-lg"></i></button><div class="w-px bg-gray-200 my-1"></div>` : ''}
                     <button onclick="${currentView === 'users' ? 'exportUsersPDF()' : (currentView === 'history' ? 'exportHistoryPDF()' : (currentView.includes('dispose') || currentView === 'return_customer' ? `exportDisposePDF('${currentView === 'return_customer' ? 'return' : 'dispose'}')` : 'exportItemsPDF()'))}" class="px-3 py-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Export PDF"><i class="fa-solid fa-file-pdf text-lg"></i></button>
-                    ${settingsBtn}
+                    ${btnSettings}
                 </div>`;
 
             if (currentView === 'status') {
                 container.innerHTML = `<h2 class="text-2xl font-bold mb-6 text-slate-800">สถานะตัวอย่างดินทั้งหมด</h2><div class="bg-white p-4 rounded-xl shadow-sm mb-4 flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา (เลขรับ, ชั้น, ผู้เบิก...)" class="w-full p-2 border rounded-lg">${paginationSelect}</div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">สถานะ</th><th class="p-4">ผู้ที่กำลังเบิกไป</th><th class="p-4">พารามิเตอร์</th><th class="p-4">รายงานผลเมื่อ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
             } else if (currentView === 'items') {
                 if (currentUser.username !== 'admin') { container.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</div>`; return; }
-                container.innerHTML = `<div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4"><h2 class="text-2xl font-bold text-slate-800">จัดการตัวอย่างดิน</h2><div class="flex flex-wrap items-center gap-3 justify-end"><div class="flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40">${paginationSelect}</div><div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1"><button onclick="exportItemsXLSX()" class="px-3 py-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Export Excel"><i class="fa-solid fa-file-excel text-lg"></i></button><div class="w-px bg-gray-200 my-1"></div><button onclick="exportItemsPDF()" class="px-3 py-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Export PDF"><i class="fa-solid fa-file-pdf text-lg"></i></button>${settingsBtn}</div>${canAct ? `<div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1"><button onclick="syncExternalData()" class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors" title="อัปเดตข้อมูล"><i class="fa-solid fa-rotate"></i> <span class="hidden sm:inline">อัปเดต</span></button><div class="w-px bg-gray-200 my-1"></div><button onclick="downloadTemplate()" class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="ดาวน์โหลดฟอร์ม"><i class="fa-solid fa-file-arrow-down"></i> <span class="hidden sm:inline">โหลดฟอร์ม</span></button><div class="w-px bg-gray-200 my-1"></div><div class="relative"><button class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"><i class="fa-solid fa-file-import"></i> <span class="hidden sm:inline">นำเข้า</span></button><input type="file" id="import-file" accept=".xlsx, .xls" onchange="handleImport(this)" class="absolute inset-0 opacity-0 cursor-pointer" title="อัปโหลดไฟล์ Excel"></div></div><button onclick="openItemModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-plus"></i> <span>เพิ่มข้อมูล</span></button><button onclick="deleteSelected('item')" id="btn-delete-items" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md transition-all hidden flex items-center gap-2 text-sm font-medium animate-pulse"><i class="fa-solid fa-trash-can"></i> <span id="selected-count">0</span></button>` : ''}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this)">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รับ</th><th class="p-4">การจำหน่ายตัวอย่าง</th><th class="p-4">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
+                container.innerHTML = `<div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4"><div class="flex flex-wrap items-center gap-3 justify-end"><div class="flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40">${paginationSelect}</div>${exportGroup}${canAct ? `<div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1"><button onclick="syncExternalData()" class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors" title="อัปเดตข้อมูล"><i class="fa-solid fa-rotate"></i> <span class="hidden sm:inline">อัปเดต</span></button><div class="w-px bg-gray-200 my-1"></div><button onclick="downloadTemplate()" class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="ดาวน์โหลดฟอร์ม"><i class="fa-solid fa-file-arrow-down"></i> <span class="hidden sm:inline">โหลดฟอร์ม</span></button><div class="w-px bg-gray-200 my-1"></div><div class="relative"><button class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"><i class="fa-solid fa-file-import"></i> <span class="hidden sm:inline">นำเข้า</span></button><input type="file" id="import-file" accept=".xlsx, .xls" onchange="handleImport(this)" class="absolute inset-0 opacity-0 cursor-pointer" title="อัปโหลดไฟล์ Excel"></div></div><button onclick="openItemModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-plus"></i> <span>เพิ่มข้อมูล</span></button><button onclick="deleteSelected('item')" id="btn-delete-items" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md transition-all hidden flex items-center gap-2 text-sm font-medium animate-pulse"><i class="fa-solid fa-trash-can"></i> <span id="selected-count">0</span></button>` : ''}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this)">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รับ</th><th class="p-4">การจำหน่ายตัวอย่าง</th><th class="p-4">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
             } else if (currentView === 'borrow') {
-                container.innerHTML = `<h2 class="text-2xl font-bold mb-6 text-slate-800">ระบบเบิก-คืน ตัวอย่าง</h2><div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-xl shadow-sm h-[600px] flex flex-col"><h3 class="text-lg font-bold mb-4 text-emerald-700 border-b pb-2">เบิกตัวอย่าง (ค้นหา)</h3><div class="mb-4"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="พิมพ์เลขรับ หรือ ชั้นเก็บ..." class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div><div class="flex-1 overflow-y-auto pr-2"><table class="w-full text-sm text-left"><thead class="sticky top-0 bg-white shadow-sm"><tr class="text-gray-500"><th class="pb-2">เลขรับ</th><th class="pb-2">จำนวน</th><th class="pb-2">ชั้น</th><th class="pb-2 text-right">เลือก</th></tr></thead><tbody id="borrow-list-body"></tbody></table></div></div><div class="bg-white p-6 rounded-xl shadow-sm h-fit"><h3 class="text-lg font-bold mb-4 text-blue-700 border-b pb-2">คืนตัวอย่างของฉัน</h3><div class="overflow-y-auto max-h-[500px]"><table class="w-full text-sm text-left"><thead class="sticky top-0 bg-white"><tr class="text-gray-500"><th class="pb-2">เลขรับ</th><th class="pb-2">จำนวน</th><th class="pb-2 text-right">คืน</th></tr></thead><tbody id="return-list-body"></tbody></table></div></div></div>`;
+                container.innerHTML = `<h2 class="text-2xl font-bold mb-6 text-slate-800">ระบบเบิก-คืน ตัวอย่าง</h2><div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-xl shadow-sm h-[600px] flex flex-col"><h3 class="text-lg font-bold mb-4 text-emerald-700 border-b pb-2">เบิกตัวอย่าง (ค้นหา)</h3><div class="mb-4"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="พิมพ์เลขรับ..." class="w-full p-2 border rounded-lg"></div><div class="flex-1 overflow-y-auto pr-2"><table class="w-full text-sm text-left"><thead><tr><th class="pb-2">เลขรับ</th><th class="pb-2">จำนวน</th><th class="pb-2">ชั้น</th><th class="pb-2 text-right">เลือก</th></tr></thead><tbody id="borrow-list-body"></tbody></table></div></div><div class="bg-white p-6 rounded-xl shadow-sm h-fit"><h3 class="text-lg font-bold mb-4 text-blue-700 border-b pb-2">คืนตัวอย่างของฉัน</h3><div class="overflow-y-auto max-h-[500px]"><table class="w-full text-sm text-left"><thead><tr><th class="pb-2">เลขรับ</th><th class="pb-2">จำนวน</th><th class="pb-2 text-right">คืน</th></tr></thead><tbody id="return-list-body"></tbody></table></div></div></div>`;
             } else if (currentView === 'history') {
                 const isAdmin = currentUser.username === 'admin';
-                container.innerHTML = `<div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-slate-800">ประวัติการใช้งาน</h2><div class="flex gap-2 items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40 mr-2">${paginationSelect}${isAdmin ? `<button onclick="deleteSelected('event')" id="btn-delete-history" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hidden flex items-center gap-2 text-sm font-medium animate-pulse"><i class="fa-solid fa-trash-can"></i> ลบที่เลือก</button>` : ''}<div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1"><button onclick="exportHistoryXLSX()" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Export Excel"><i class="fa-solid fa-file-excel text-xl"></i> <span class="font-medium">Excel</span></button><div class="w-px bg-gray-200 my-1 mx-1"></div><button onclick="exportHistoryPDF()" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Export PDF"><i class="fa-solid fa-file-pdf text-xl"></i> <span class="font-medium">PDF</span></button></div>${settingsBtn}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table id="history-table" class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4 w-10">${isAdmin ? '<input type="checkbox" onchange="toggleAllItems(this, \'btn-delete-history\')">' : ''}</th><th class="p-4">เวลา</th><th class="p-4">รายการ</th><th class="p-4">เลขรับตัวอย่าง</th><th class="p-4">ผู้ดำเนินการ</th><th class="p-4">ชื่อ-สกุล</th><th class="p-4">กลุ่มงาน</th><th class="p-4">หมายเหตุ</th><th class="p-4">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
+                container.innerHTML = `<div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-slate-800">ประวัติการใช้งาน</h2><div class="flex gap-2 items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40 mr-2">${paginationSelect}${isAdmin ? `<button onclick="deleteSelected('event')" id="btn-delete-history" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hidden flex items-center gap-2 text-sm font-medium animate-pulse"><i class="fa-solid fa-trash-can"></i> ลบที่เลือก</button>` : ''}${exportGroup}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table id="history-table" class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4 w-10">${isAdmin ? '<input type="checkbox" onchange="toggleAllItems(this, \'btn-delete-history\')">' : ''}</th><th class="p-4">เวลา</th><th class="p-4">รายการ</th><th class="p-4">เลขรับตัวอย่าง</th><th class="p-4">ผู้ดำเนินการ</th><th class="p-4">ชื่อ-สกุล</th><th class="p-4">กลุ่มงาน</th><th class="p-4">หมายเหตุ</th><th class="p-4">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
             } else if (currentView === 'dispose') {
                 const canAct = currentUser.username === 'admin' || currentUser.canDispose === true;
-                container.innerHTML = `<div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-orange-700">จำหน่ายตัวอย่าง (ครบกำหนด 60 วัน)</h2><div class="flex space-x-2"><div class="flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-32">${paginationSelect}</div>${canAct ? `<button onclick="deleteSelected('item')" id="btn-delete-dispose" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hidden flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-trash-can"></i> ลบที่เลือก</button>` : ''}<button onclick="exportDisposeXLSX('dispose')" class="btn-success text-sm"><i class="fa-solid fa-file-excel mr-2"></i> Excel</button><button onclick="exportDisposePDF('dispose')" class="btn-secondary text-sm"><i class="fa-solid fa-file-pdf mr-2"></i> PDF</button>${settingsBtn}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-orange-50 text-orange-800 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this, \'btn-delete-dispose\')">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รายงานผล</th><th class="p-4">เกินกำหนด (วัน)</th><th class="p-4">ความต้องการ</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
+                container.innerHTML = `<div class="flex justify-between items-center mb-6"><div class="flex space-x-2"><div class="flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-32">${paginationSelect}</div>${canAct ? `<button onclick="deleteSelected('item')" id="btn-delete-dispose" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hidden flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-trash-can"></i> ลบที่เลือก</button>` : ''}${exportGroup}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-orange-50 text-orange-800 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this, \'btn-delete-dispose\')">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รายงานผล</th><th class="p-4">เกินกำหนด (วัน)</th><th class="p-4">ความต้องการ</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
             } else if (currentView === 'return_customer') {
                 const canAct = currentUser.username === 'admin' || currentUser.canDispose === true;
-                container.innerHTML = `<div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-teal-700">การคืนตัวอย่าง (ครบกำหนด 60 วัน)</h2><div class="flex space-x-2"><div class="flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-32">${paginationSelect}</div>${canAct ? `<button onclick="deleteSelected('item')" id="btn-delete-return" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg hidden text-sm font-medium"><i class="fa-solid fa-trash-can"></i> ลบ</button>` : ''}<button onclick="exportDisposeXLSX('return')" class="btn-success text-sm"><i class="fa-solid fa-file-excel mr-2"></i> Excel</button><button onclick="exportDisposePDF('return')" class="btn-secondary text-sm"><i class="fa-solid fa-file-pdf mr-2"></i> PDF</button>${settingsBtn}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-teal-50 text-teal-800 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this, \'btn-delete-return\')">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รายงานผล</th><th class="p-4">เกินกำหนด (วัน)</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
+                container.innerHTML = `<div class="flex justify-between items-center mb-6"><div class="flex space-x-2"><div class="flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-32">${paginationSelect}</div>${canAct ? `<button onclick="deleteSelected('item')" id="btn-delete-return" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg hidden text-sm font-medium"><i class="fa-solid fa-trash-can"></i> ลบ</button>` : ''}${exportGroup}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-teal-50 text-teal-800 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this, \'btn-delete-return\')">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รายงานผล</th><th class="p-4">เกินกำหนด (วัน)</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
             } else if (currentView === 'report') {
                 const canAct = currentUser.username === 'admin' || currentUser.canReport === true;
-                container.innerHTML = `<h2 class="text-2xl font-bold mb-6 text-blue-700">รายงานผลการวิเคราะห์</h2><div class="flex justify-between mb-4 space-x-2"><div class="flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40">${paginationSelect}</div><div class="flex gap-2">${canAct ? `<button onclick="deleteSelected('item')" id="btn-delete-report" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hidden flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-trash-can"></i> ลบที่เลือก</button>` : ''}${exportGroup}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-blue-50 text-blue-800 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this)">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">วันที่รับ</th><th class="p-4">พารามิเตอร์</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
+                container.innerHTML = `<div class="flex justify-between mb-4 space-x-2"><div class="flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40">${paginationSelect}</div><div class="flex gap-2">${canAct ? `<button onclick="deleteSelected('item')" id="btn-delete-report" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hidden flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-trash-can"></i> ลบที่เลือก</button>` : ''}${exportGroup}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-blue-50 text-blue-800 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this)">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">วันที่รับ</th><th class="p-4">พารามิเตอร์</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
             } else if (currentView === 'users') {
                  if (currentUser.username !== 'admin') { container.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</div>`; return; }
-                 container.innerHTML = `<h2 class="text-2xl font-bold mb-6 text-purple-700">จัดการผู้ใช้งาน (Admin)</h2><div class="flex justify-end mb-4 gap-2">${exportGroup}</div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-purple-50 text-purple-800 font-semibold border-b"><tr><th class="p-4">Username</th><th class="p-4">ชื่อ</th><th class="p-4">กลุ่ม</th><th class="p-4">สถานะ</th><th class="p-4 text-center">สิทธิ์รายงานผล</th><th class="p-4 text-center">สิทธิ์จัดการข้อมูล</th><th class="p-4 text-center">สิทธิ์จำหน่าย</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div></div>`;
+                 container.innerHTML = `<div class="flex justify-end mb-4 gap-2">${exportGroup}</div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-purple-50 text-purple-800 font-semibold border-b"><tr><th class="p-4">Username</th><th class="p-4">ชื่อ</th><th class="p-4">กลุ่ม</th><th class="p-4">สถานะ</th><th class="p-4 text-center">สิทธิ์รายงานผล</th><th class="p-4 text-center">สิทธิ์จัดการข้อมูล</th><th class="p-4 text-center">สิทธิ์จำหน่าย</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div></div>`;
             } else if (currentView === 'profile') {
                 container.innerHTML = `<h2 class="text-2xl font-bold mb-6 text-slate-800">ข้อมูลส่วนตัว</h2><div class="bg-white max-w-lg p-6 rounded-xl shadow-sm"><form onsubmit="handleProfileUpdate(event)" class="space-y-4"><div><label class="block text-sm font-medium text-gray-700 mb-1">Username (แก้ไขไม่ได้)</label><input type="text" value="${currentUser.username}" disabled class="w-full p-2 bg-gray-100 border rounded-lg text-gray-500"></div><div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล</label><input type="text" id="edit-name" value="${currentUser.name}" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div><div><label class="block text-sm font-medium text-gray-700 mb-1">กลุ่มงาน</label><select id="edit-group" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500">${DEPARTMENTS.map(g => `<option value="${g}" ${currentUser.group === g ? 'selected' : ''}>${g}</option>`).join('')}</select></div><div><label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่านใหม่ (ว่างไว้ถ้าไม่เปลี่ยน)</label><input type="password" id="edit-pass" placeholder="New Password" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div><button type="submit" class="btn-primary w-full">บันทึกการเปลี่ยนแปลง</button></form></div>`;
             }
@@ -747,7 +515,7 @@
         function checkSelection(btnId = 'btn-delete-selected') { const checkedCount = document.querySelectorAll('.item-checkbox:checked').length; const btn = document.getElementById(btnId); if(btn) { if(checkedCount > 0) btn.classList.remove('hidden'); else btn.classList.add('hidden'); } }
         async function deleteSelected(type) { const checked = document.querySelectorAll('.item-checkbox:checked'); if(checked.length === 0) return; if(!confirm(`ยืนยันการลบ ${checked.length} รายการที่เลือก?`)) return; showLoading(`กำลังลบ ${checked.length} รายการ...`); let successCount = 0; for(let cb of checked) { if(type === 'event') await apiCall('deleteEvent', { id: cb.value }, false); else await apiCall('deleteItem', { id: cb.value }, false); successCount++; } hideLoading(); alert(`ลบเสร็จสิ้น ${successCount} รายการ`); await refreshData(); router(currentView); }
         function downloadTemplate() { const wb = XLSX.utils.book_new(); const ws_data = [["เลขรับ", "จำนวนตัวอย่าง", "วันที่รับ", "ชั้นวาง", "พารามิเตอร์", "การจำหน่ายตัวอย่าง"], ["S-67001", 1, "2024-01-20", "A1", "pH, EC", "รับคืน"], ["S-67002", 5, "2024-01-20", "B2", "N, P, K", "ทิ้ง"]]; const ws = XLSX.utils.aoa_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "Template"); XLSX.writeFile(wb, "Soil_Sample_Template.xlsx"); }
-        function exportXLSX() { if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } const wb = XLSX.utils.book_new(); const ws_data = events.map(e => { const info = getUserInfo(e.user); return { "เวลา": formatDateForPDF(e.date), "ประเภทรายการ": e.type === 'Borrow' ? 'เบิกออก' : 'นำคืน', "เลขรับตัวอย่าง": e.itemName, "ผู้ดำเนินการ (User)": e.user, "ชื่อ-สกุล": info.name, "กลุ่มงาน": info.group, "หมายเหตุ": e.note }; }); const ws = XLSX.utils.json_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "Report"); XLSX.writeFile(wb, "History_Report.xlsx"); }
+        function exportHistoryXLSX() { if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } const wb = XLSX.utils.book_new(); const ws_data = events.map(e => { const info = getUserInfo(e.user); return { "เวลา": formatDateForPDF(e.date), "ประเภทรายการ": e.type === 'Borrow' ? 'เบิกออก' : 'นำคืน', "เลขรับตัวอย่าง": e.itemName, "ผู้ดำเนินการ (User)": e.user, "ชื่อ-สกุล": info.name, "กลุ่มงาน": info.group, "หมายเหตุ": e.note }; }); const ws = XLSX.utils.json_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "Report"); XLSX.writeFile(wb, "History_Report.xlsx"); }
         function exportItemsXLSX() { if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } const wb = XLSX.utils.book_new(); const ws_data = items.map(i => ({ "เลขรับ": i.receiptNo, "จำนวน": i.qty, "ชั้นเก็บ": i.layer, "วันที่รับ": formatDateTh(i.dateReceived, false), "พารามิเตอร์": i.params, "การจำหน่ายตัวอย่าง": i.disposalPref, "สถานะ": i.status })); const ws = XLSX.utils.json_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "SoilItems"); XLSX.writeFile(wb, "Soil_Samples_List.xlsx"); }
         function exportItemsPDF() { 
             if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } 
@@ -771,48 +539,26 @@
             }); 
         }
 
-        function exportHistoryXLSX() { 
-            if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } 
-            const wb = XLSX.utils.book_new(); 
-            const ws_data = events.map(e => {
-                const info = getUserInfo(e.user);
-                return { 
-                    "เวลา": formatDateForPDF(e.date), 
-                    "ประเภทรายการ": e.type === 'Borrow' ? 'เบิกออก' : 'นำคืน', 
-                    "เลขรับตัวอย่าง": e.itemName, 
-                    "ผู้ดำเนินการ (User)": e.user, 
-                    "ชื่อ-สกุล": info.name, 
-                    "กลุ่มงาน": info.group, 
-                    "หมายเหตุ": e.note 
-                };
-            }); 
-            const ws = XLSX.utils.json_to_sheet(ws_data); 
-            XLSX.utils.book_append_sheet(wb, ws, "History"); 
-            XLSX.writeFile(wb, "History_Report.xlsx"); 
-        }
-
-        function exportHistoryPDF() { 
-            if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } 
-            const { jsPDF } = window.jspdf; const doc = new jsPDF('l'); 
-            const settings = docSettings['history'] || { footerLeft: '', footerRight: '' };
-            loadThaiFont(doc).then(() => { 
-                doc.text("History Report", 14, 20); doc.setFontSize(10); doc.text(`Generated on ${formatDateForPDF(new Date().toISOString())}`, 14, 30); 
-                const tableColumn = ["Time", "Type", "Sample No", "User", "Name", "Group"]; 
-                const tableRows = events.map(e => {
-                    const info = getUserInfo(e.user);
-                    return [formatDateForPDF(e.date), e.type === 'Borrow' ? 'Borrow' : 'Return', e.itemName, e.user, info.name, info.group];
-                }); 
+        // Export Users Function (Fix)
+        function exportUsersPDF() {
+             if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } 
+             const { jsPDF } = window.jspdf; const doc = new jsPDF(); 
+             const settings = docSettings['users'] || { footerLeft: '', footerRight: '' };
+             loadThaiFont(doc).then(() => { 
+                doc.text("User Management Report", 14, 20); doc.setFontSize(10); doc.text(`Generated on ${formatDateForPDF(new Date().toISOString())}`, 14, 30); 
+                const tableColumn = ["Username", "Name", "Group", "Status"]; 
+                const tableRows = userList.map(u => [u.username, u.name, u.group, u.status]); 
                 doc.autoTable({ 
                     head: [tableColumn], body: tableRows, startY: 40, styles: { font: 'Sarabun', fontStyle: 'normal' },
                     didDrawPage: function (data) {
                         doc.setFontSize(10);
-                        doc.text('Page ' + doc.internal.getNumberOfPages(), 285, 10, { align: 'right' }); 
+                        doc.text('Page ' + doc.internal.getNumberOfPages(), 195, 10, {align:'right'});
                         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
                         if(settings.footerLeft) doc.text(settings.footerLeft, 14, pageHeight - 10);
-                        if(settings.footerRight) doc.text(settings.footerRight, 285, pageHeight - 10, { align: 'right' });
+                        if(settings.footerRight) doc.text(settings.footerRight, 195, pageHeight - 10, { align: 'right' });
                     }
                 }); 
-                doc.save("history-report.pdf"); 
+                doc.save("user-report.pdf"); 
             }); 
         }
 
@@ -860,35 +606,53 @@
                 doc.save(`${type === 'return' ? 'return-report' : 'disposal-report'}.pdf`); 
             }); 
         }
-        function exportPDF() { 
-            if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } 
-            try { 
-                const { jsPDF } = window.jspdf; const doc = new jsPDF('l'); 
-                const settings = docSettings['history'] || { footerLeft: '', footerRight: '' };
-                loadThaiFont(doc).then(() => { 
-                    doc.text("Soilsheif Pro System - Transaction Report", 14, 20); doc.setFontSize(10); doc.text(`Generated by: ${currentUser.username} on ${formatDateForPDF(new Date().toISOString())}`, 14, 30); 
-                    const tableColumn = ["Time", "Type", "Sample No", "User", "Name", "Group", "Note"]; 
-                    const tableRows = []; events.forEach(event => { const typeEn = event.type === 'Borrow' ? 'Borrow' : 'Return'; const info = getUserInfo(event.user); const eventData = [formatDateForPDF(event.date), typeEn, event.itemName, event.user, info.name, info.group, event.note || '-']; tableRows.push(eventData); }); 
-                    doc.autoTable({ 
-                        head: [tableColumn], body: tableRows, startY: 40, styles: { font: 'Sarabun', fontStyle: 'normal' },
-                        didDrawPage: function (data) {
-                            doc.setFontSize(10);
-                            doc.text('Page ' + doc.internal.getNumberOfPages(), 285, 10, { align: 'right' }); 
-                            const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
-                            if(settings.footerLeft) doc.text(settings.footerLeft, 14, pageHeight - 10);
-                            if(settings.footerRight) doc.text(settings.footerRight, 285, pageHeight - 10, { align: 'right' });
-                        }
-                    }); 
-                    doc.save("soil-report.pdf"); 
-                }); 
-            } catch (err) { console.error(err); alert("Error Export PDF: " + err.message); } 
+        function exportStatusXLSX() { if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } const wb = XLSX.utils.book_new(); const ws_data = items.map(i => ({ "เลขรับ": i.receiptNo, "จำนวน": i.qty, "ชั้นเก็บ": i.layer, "สถานะ": i.status, "ผู้เบิก": i.holder, "พารามิเตอร์": i.params, "วันที่รายงาน": formatDateTh(i.dateReported, false) })); const ws = XLSX.utils.json_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "Status"); XLSX.writeFile(wb, "Status_Report.xlsx"); }
+        function exportStatusPDF() { if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } const { jsPDF } = window.jspdf; const doc = new jsPDF(); const settings = docSettings['status'] || { footerLeft: '', footerRight: '' }; loadThaiFont(doc).then(() => { doc.text("Status Report", 14, 20); doc.setFontSize(10); doc.text(`Generated on ${formatDateForPDF(new Date().toISOString())}`, 14, 30); const tableColumn = ["Sample No", "Qty", "Layer", "Status", "Holder", "Params"]; const tableRows = items.map(i => [i.receiptNo, i.qty, i.layer, i.status, i.holder, i.params]); doc.autoTable({ head: [tableColumn], body: tableRows, startY: 40, styles: { font: 'Sarabun', fontStyle: 'normal' }, didDrawPage: function(d){ doc.text('Page '+doc.internal.getNumberOfPages(), 195, 10, {align:'right'}); if(settings.footerLeft) doc.text(settings.footerLeft, 14, 280); if(settings.footerRight) doc.text(settings.footerRight, 195, 280, {align:'right'}); } }); doc.save("status-report.pdf"); }); }
+        function exportReportXLSX() { if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } const filtered = items.filter(i => !i.dateReported); const wb = XLSX.utils.book_new(); const ws_data = filtered.map(i => ({ "เลขรับ": i.receiptNo, "วันที่รับ": formatDateTh(i.dateReceived, false), "พารามิเตอร์": i.params })); const ws = XLSX.utils.json_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "PendingReport"); XLSX.writeFile(wb, "Pending_Analysis_Report.xlsx"); }
+        function exportReportPDF() { if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } const filtered = items.filter(i => !i.dateReported); const { jsPDF } = window.jspdf; const doc = new jsPDF(); const settings = docSettings['report'] || { footerLeft: '', footerRight: '' }; loadThaiFont(doc).then(() => { doc.text("Pending Analysis Report", 14, 20); doc.setFontSize(10); doc.text(`Generated on ${formatDateForPDF(new Date().toISOString())}`, 14, 30); const tableColumn = ["Sample No", "Date Received", "Params"]; const tableRows = filtered.map(i => [i.receiptNo, formatDateForPDF(i.dateReceived), i.params]); doc.autoTable({ head: [tableColumn], body: tableRows, startY: 40, styles: { font: 'Sarabun', fontStyle: 'normal' }, didDrawPage: function(d){ doc.text('Page '+doc.internal.getNumberOfPages(), 195, 10, {align:'right'}); if(settings.footerLeft) doc.text(settings.footerLeft, 14, 280); if(settings.footerRight) doc.text(settings.footerRight, 195, 280, {align:'right'}); } }); doc.save("pending-analysis-report.pdf"); }); }
+        function exportHistoryPDF() { if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } const { jsPDF } = window.jspdf; const doc = new jsPDF('l'); const settings = docSettings['history'] || { footerLeft: '', footerRight: '' }; loadThaiFont(doc).then(() => { doc.text("History Report", 14, 20); doc.setFontSize(10); doc.text(`Generated by: ${currentUser.username} on ${formatDateForPDF(new Date().toISOString())}`, 14, 30); const tableColumn = ["Time", "Type", "Sample No", "User", "Name", "Group"]; const tableRows = events.map(e => { const info = getUserInfo(e.user); return [formatDateForPDF(e.date), e.type === 'Borrow' ? 'Borrow' : 'Return', e.itemName, e.user, info.name, info.group]; }); doc.autoTable({ head: [tableColumn], body: tableRows, startY: 40, styles: { font: 'Sarabun', fontStyle: 'normal' }, didDrawPage: function(d){ doc.text('Page '+doc.internal.getNumberOfPages(), 285, 10, {align:'right'}); if(settings.footerLeft) doc.text(settings.footerLeft, 14, 200); if(settings.footerRight) doc.text(settings.footerRight, 285, 200, {align:'right'}); } }); doc.save("history-report.pdf"); }); }
+
+        async function openSettingsModal(viewKey) {
+            const settings = docSettings[viewKey] || { footerLeft: '', footerRight: '' };
+            const modalHtml = `
+                <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 animate-[fadeIn_0.2s_ease-out]">
+                        <h3 class="text-xl font-bold mb-4 text-slate-800">ตั้งค่าเอกสาร PDF</h3>
+                        <p class="text-sm text-gray-500 mb-4">สำหรับเมนู: <b>${viewKey}</b></p>
+                        <div class="space-y-3">
+                            <div><label class="block text-sm font-bold text-gray-700 mb-1">ข้อความซ้ายล่าง</label><input type="text" id="footer-left" value="${settings.footerLeft}" class="w-full p-2 border rounded"></div>
+                            <div><label class="block text-sm font-bold text-gray-700 mb-1">ข้อความขวาล่าง</label><input type="text" id="footer-right" value="${settings.footerRight}" class="w-full p-2 border rounded"></div>
+                        </div>
+                        <div class="flex justify-end space-x-2 border-t pt-4 mt-4">
+                            <button onclick="document.getElementById('modal-container').innerHTML=''" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">ยกเลิก</button>
+                            <button onclick="saveSettings('${viewKey}')" class="btn-primary">บันทึก</button>
+                        </div>
+                    </div>
+                </div>`;
+            document.getElementById('modal-container').innerHTML = modalHtml;
         }
-        async function loadThaiFont(doc) { try { const res = await fetch("https://raw.githubusercontent.com/google/fonts/main/ofl/sarabun/Sarabun-Regular.ttf"); if (!res.ok) throw new Error("Font fetch failed"); const blob = await res.blob(); const reader = new FileReader(); return new Promise(resolve => { reader.onload = function() { const base64 = reader.result.split(',')[1]; doc.addFileToVFS('Sarabun-Regular.ttf', base64); doc.addFont('Sarabun-Regular.ttf', 'Sarabun', 'normal'); doc.setFont('Sarabun'); resolve(); }; reader.readAsDataURL(blob); }); } catch (e) { console.error("Error loading font:", e); alert("ไม่สามารถโหลดฟอนต์ภาษาไทยได้ (Network Error) ระบบจะใช้ฟอนต์มาตรฐานแทน"); } }
-        async function handleImport(input) { const file = input.files[0]; if (!file) return; if(!confirm("ยืนยันการนำเข้าข้อมูล?")) { input.value = ''; return; } const reader = new FileReader(); reader.onload = async function(e) { const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, {type: 'array'}); const worksheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonData = XLSX.utils.sheet_to_json(worksheet); if (jsonData.length === 0) { alert("ไม่พบข้อมูลในไฟล์"); return; } showLoading(`กำลังนำเข้า ${jsonData.length} รายการ...`); let successCount = 0; let failCount = 0; for (let i = 0; i < jsonData.length; i++) { const row = jsonData[i]; const receiptNo = row['เลขรับ'] || row['receiptNo']; if(!receiptNo) continue; const newItem = { receiptNo: receiptNo, qty: row['จำนวนตัวอย่าง'] || row['qty'] || 1, dateReceived: row['วันที่รับ'] || row['dateReceived'] || new Date().toISOString().split('T')[0], layer: "'" + (row['ชั้นวาง'] || row['layer'] || '-'), params: row['พารามิเตอร์'] || row['params'] || '-', disposalPref: row['การจำหน่ายตัวอย่าง'] || row['stimeout'] || row['DisposalPref'] || 'ทิ้ง' }; try { const res = await apiCall('addItem', { item: newItem }, false); if(res.status === 'success') successCount++; else failCount++; } catch (err) { failCount++; } } hideLoading(); input.value = ''; alert(`นำเข้าเสร็จสิ้น: สำเร็จ ${successCount} รายการ, ล้มเหลว ${failCount} รายการ`); await refreshData(); router('items'); }; reader.readAsArrayBuffer(file); }
-        function openItemModal(item = null) { const isEdit = !!item; const modalHtml = `<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 animate-[fadeIn_0.2s_ease-out]"><h3 class="text-xl font-bold mb-4">${isEdit ? 'แก้ไขตัวอย่าง' : 'เพิ่มตัวอย่างใหม่'}</h3><form onsubmit="handleSaveItem(event, '${isEdit ? item.id : ''}')" class="space-y-3"><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-600">เลขรับ</label><input type="text" id="m-receipt" value="${item?.receiptNo || ''}" class="w-full p-2 border rounded" required></div><div><label class="block text-xs font-bold text-gray-600">วันที่รับ</label><input type="date" id="m-date" value="${item?.dateReceived || ''}" class="w-full p-2 border rounded" required></div></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-bold text-gray-600">จำนวน</label><input type="number" id="m-qty" value="${item?.qty || 1}" class="w-full p-2 border rounded" required></div><div><label class="block text-xs font-bold text-gray-600">ชั้นเก็บ</label><input type="text" id="m-layer" value="${item?.layer || ''}" class="w-full p-2 border rounded" placeholder="เช่น A1"></div></div><div><label class="block text-xs font-bold text-gray-600">พารามิเตอร์วิเคราะห์</label><input type="text" id="m-params" value="${item?.params || ''}" class="w-full p-2 border rounded" placeholder="เช่น pH, EC, N, P, K"></div><div><label class="block text-xs font-bold text-gray-600">ความต้องการหลังวิเคราะห์ (การจำหน่ายตัวอย่าง)</label><select id="m-pref" class="w-full p-2 border rounded"><option value="ทิ้ง" ${item?.disposalPref === 'ทิ้ง' ? 'selected' : ''}>ทิ้ง</option><option value="รับคืน" ${item?.disposalPref === 'รับคืน' ? 'selected' : ''}>รับคืน</option></select></div><div class="flex justify-end space-x-2 mt-4 pt-4 border-t"><button type="button" onclick="document.getElementById('modal-container').innerHTML=''" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">ยกเลิก</button><button type="submit" class="btn-primary">บันทึก</button></div></form></div></div>`; document.getElementById('modal-container').innerHTML = modalHtml; }
+
+        async function saveSettings(viewKey) {
+            const left = document.getElementById('footer-left').value;
+            const right = document.getElementById('footer-right').value;
+            const newSettings = { footerLeft: left, footerRight: right };
+            
+            showLoading("กำลังบันทึก...");
+            const res = await apiCall('saveSettings', { type: viewKey, settings: newSettings }, false);
+            hideLoading();
+            
+            if(res.status === 'success') {
+                if(!docSettings[viewKey]) docSettings[viewKey] = {};
+                docSettings[viewKey] = newSettings;
+                document.getElementById('modal-container').innerHTML = '';
+                alert('บันทึกเรียบร้อย');
+            } else {
+                alert(res.message);
+            }
+        }
+        
         async function handleSaveItem(e, id) { e.preventDefault(); const newItem = { id: id, receiptNo: document.getElementById('m-receipt').value, dateReceived: document.getElementById('m-date').value, qty: document.getElementById('m-qty').value, layer: "'" + document.getElementById('m-layer').value, params: document.getElementById('m-params').value, disposalPref: document.getElementById('m-pref').value }; const action = id ? 'editItem' : 'addItem'; const res = await apiCall(action, { item: newItem }); if (res.status === 'success') { document.getElementById('modal-container').innerHTML = ''; await refreshData(); router('items'); } else { alert(res.message); } }
         async function syncExternalData() { const url = SECONDARY_DB_URL; if(!confirm("ยืนยันการอัปเดตข้อมูลจาก Database สำรอง?")) return; showLoading("กำลังซิงค์ข้อมูล..."); const res = await apiCall('syncExternalData', { url: url }, false); hideLoading(); alert(res.message); if(res.status === 'success') { await refreshData(); router('items'); } }
-        
         async function processTransaction(type, itemId) { if (!itemId) return alert('รหัสสินค้าไม่ถูกต้อง'); const action = type === 'borrow' ? 'borrowItem' : 'returnItem'; const res = await apiCall(action, { itemId: itemId, username: currentUser.username }); if (res.status === 'success') { alert(type === 'borrow' ? 'เบิกสำเร็จ' : 'คืนสำเร็จ'); await refreshData(); router('borrow'); } else { alert(res.message); } }
         async function handleProfileUpdate(e) { e.preventDefault(); const pass = document.getElementById('edit-pass').value; const updateData = { username: currentUser.username, name: document.getElementById('edit-name').value, group: document.getElementById('edit-group').value, password: pass ? pass : currentUser.password }; const res = await apiCall('updateProfile', updateData); if(res.status === 'success') { currentUser.name = updateData.name; currentUser.group = updateData.group; if(pass) currentUser.password = pass; localStorage.setItem('soilAppUser', JSON.stringify(currentUser)); alert('แก้ไขข้อมูลสำเร็จ'); updateNavUser(); } }
 
