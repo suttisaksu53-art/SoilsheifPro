@@ -3,913 +3,1519 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบบริหารจัดการตัวอย่างดินเพื่องานวิเคราะห์ดินในห้องปฏิบัติการ กลุ่มวิจัยเคมีดิน</title>
-    
+    <title>Soil Color Chart Analyzer Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script> 
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS for Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- jsPDF & html2canvas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; }
-        .btn-primary { @apply bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200; }
-        .btn-secondary { @apply bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-colors duration-200; }
-        .btn-success { @apply bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200; }
-        .btn-danger { @apply bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200; }
-        .status-badge { position: fixed; bottom: 20px; right: 20px; padding: 8px 16px; border-radius: 50px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 40; display: flex; align-items: center; gap: 8px; }
-        .status-online { background-color: #10b981; color: white; }
-        .status-demo { background-color: #f59e0b; color: white; }
-        .nav-item.active { background-color: #059669; color: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        .nav-item-highlight { background-color: #fffbeb; color: #92400e; border: 1px solid #fcd34d; font-weight: bold; }
-        .nav-item-highlight:hover { background-color: #fef3c7; }
-        .nav-item-highlight.active { background-color: #d97706; color: white; border-color: #b45309; }
-        .toggle-checkbox:checked { right: 0; border-color: #10b981; }
-        .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
-        #sidebar { transition: transform 0.3s ease-in-out; }
-        #mobile-overlay { transition: opacity 0.3s ease-in-out; }
-        .item-checkbox { width: 1.2rem; height: 1.2rem; cursor: pointer; accent-color: #10b981; }
+        body { font-family: 'Sarabun', sans-serif; }
+        .color-box { transition: all 0.3s ease; }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .marker-box {
+            position: absolute; width: 30px; height: 30px; border: 2px solid #00ff00;
+            background-color: rgba(0, 255, 0, 0.2); box-shadow: 0 0 4px rgba(0,0,0,0.8);
+            pointer-events: none; transform: translate(-50%, -50%); z-index: 10; display: none;
+        }
+        .center-reticle {
+            position: absolute; top: 50%; left: 50%; width: 40px; height: 40px;
+            border: 2px solid #ef4444;
+            background-color: rgba(255, 0, 0, 0.1);
+            transform: translate(-50%, -50%); pointer-events: none; z-index: 20;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);
+        }
+        .center-reticle::before, .center-reticle::after {
+            content: ''; position: absolute; background: #ef4444;
+        }
+        .center-reticle::before { top: 50%; left: -10px; width: 60px; height: 1px; transform: translateY(-50%); }
+        .center-reticle::after { left: 50%; top: -10px; height: 60px; width: 1px; transform: translateX(-50%); }
+        
+        .cursor-crosshair { cursor: crosshair; }
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 9999; flex-direction: column;
+        }
+        .status-toast {
+            position: fixed; top: 20px; right: 20px; z-index: 10000;
+            background: #1f2937; color: white; padding: 12px 24px;
+            border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: none; align-items: center; gap: 10px;
+            transition: opacity 0.3s ease;
+        }
+        .status-toast.show { display: flex; animation: slideIn 0.3s ease-out; }
+        
+        /* Sync Status Badge */
+        .sync-badge {
+            position: fixed; bottom: 20px; right: 20px;
+            background: rgba(31, 41, 55, 0.9); color: white;
+            padding: 10px 20px; border-radius: 30px;
+            font-size: 14px; display: none; align-items: center; gap: 10px;
+            z-index: 9999; pointer-events: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* A4 Report Template Style */
+        #reportTemplate {
+            width: 210mm; min-height: 297mm; padding: 20mm;
+            background: white; color: black;
+            position: fixed; left: -9999px; top: 0;
+        }
+        .credit-text {
+            background: linear-gradient(to right, #10b981, #3b82f6);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            font-weight: bold; letter-spacing: 1px;
+        }
     </style>
 </head>
-<body class="text-gray-800 h-screen flex overflow-hidden">
+<body class="bg-gray-50 min-h-screen p-2 md:p-8 flex flex-col">
 
-    <div id="mobile-overlay" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden" onclick="toggleSidebar()"></div>
-
-    <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-slate-800 text-white flex-col flex z-50 transform -translate-x-full md:translate-x-0 md:relative transition-transform duration-300">
-        <div class="p-6 border-b border-slate-700 flex items-center space-x-3">
-            <div class="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center"><i class="fa-solid fa-flask text-xl"></i></div>
-            <div><h1 class="font-bold text-lg">Soilsheif Pro System</h1><p class="text-xs text-slate-400">กลุ่มวิจัยเคมีดิน</p></div>
-        </div>
-        <nav class="flex-1 p-4 space-y-2 overflow-y-auto" id="nav-container"></nav>
-        <div class="p-4 border-t border-slate-700">
-            <div class="flex items-center space-x-3 mb-4 cursor-pointer hover:bg-slate-700 p-2 rounded" onclick="router('profile')">
-                <div class="w-8 h-8 bg-slate-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-user text-sm"></i></div>
-                <div class="flex-1 overflow-hidden"><p id="nav-username" class="text-sm font-semibold truncate">User</p><p class="text-xs text-slate-400">แก้ไขข้อมูลส่วนตัว</p></div>
-            </div>
-            <button onclick="logout()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded text-sm transition-colors"><i class="fa-solid fa-right-from-bracket mr-2"></i> ออกจากระบบ</button>
-        </div>
-    </aside>
-
-    <main class="flex-1 flex flex-col overflow-hidden relative w-full">
-        <header class="bg-white shadow-sm p-4 flex justify-between items-center z-20">
-            <div id="header-title" class="font-bold text-emerald-700 text-lg md:text-xl truncate">Soilsheif Pro System</div>
-            <button onclick="toggleSidebar()" class="text-gray-600 p-2 rounded hover:bg-gray-100 md:hidden"><i class="fa-solid fa-bars text-xl"></i></button>
-        </header>
-        <div id="content-area" class="flex-1 overflow-y-auto p-4 md:p-8 relative"></div>
-        <div id="status-badge" class="status-badge status-demo hidden"><i class="fa-solid fa-circle-info"></i><span id="status-text">โหมดจำลอง</span></div>
-    </main>
-
-    <div id="loading-overlay" class="fixed inset-0 bg-white/90 z-[200] flex items-center justify-center hidden">
-        <div class="text-center">
-            <i class="fa-solid fa-spinner fa-spin text-5xl text-emerald-600 mb-4"></i>
-            <p class="text-emerald-800 font-bold text-lg animate-pulse" id="loading-text">กำลังโหลดข้อมูล...</p>
-        </div>
+    <!-- Status Toast -->
+    <div id="statusToast" class="status-toast">
+        <div id="toastIcon"></div>
+        <div id="toastMessage"></div>
     </div>
 
-    <div id="modal-container"></div>
-
-    <div id="login-screen" class="fixed inset-0 bg-slate-900 z-[100] flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col relative">
-            <div class="bg-emerald-600 p-6 text-white text-center">
-                <i class="fa-solid fa-flask text-4xl mb-3"></i>
-                <h2 class="text-2xl font-bold">กลุ่มวิจัยเคมีดิน</h2>
-                <p class="text-emerald-100 text-sm">ระบบบริหารจัดการตัวอย่างดิน</p>
-            </div>
-            <div class="p-8">
-                <div class="flex mb-6 border-b">
-                    <button onclick="showLoginTab('login')" id="tab-login" class="flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600">เข้าสู่ระบบ</button>
-                    <button onclick="showLoginTab('register')" id="tab-register" class="flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600">ลงทะเบียน</button>
-                </div>
-                
-                <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
-                    <div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ใช้</label><input type="text" id="login-user" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-                    <div><label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label><input type="password" id="login-pass" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-                    <div class="flex items-center"><input type="checkbox" id="remember-me" class="mr-2"><label for="remember-me" class="text-sm text-gray-600">จำการเข้าสู่ระบบไว้</label></div>
-                    <div id="login-error-msg" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-sm"><span class="block sm:inline">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</span></div>
-                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg transition-colors">เข้าสู่ระบบ</button>
-                </form>
-
-                <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
-                    <div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ใช้</label><input type="text" id="reg-user" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-                    <div><label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label><input type="password" id="reg-pass" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-                    <div><label class="block text-sm font-medium text-gray-700 mb-1">ยืนยันรหัสผ่าน</label><input type="password" id="reg-pass-confirm" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-                    <div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล</label><input type="text" id="reg-name" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" required></div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">กลุ่มที่สังกัด</label>
-                        <select id="reg-group" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
-                            <option value="ฝ่ายบริหารทั่วไป">ฝ่ายบริหารทั่วไป</option>
-                            <option value="กลุ่มวิจัยเคมีดิน">กลุ่มวิจัยเคมีดิน</option>
-                            <option value="กลุ่มวิจัยกายภาพดิน">กลุ่มวิจัยกายภาพดิน</option>
-                            <option value="กลุ่มวิจัยสิ่งแวดล้อม">กลุ่มวิจัยสิ่งแวดล้อม</option>
-                            <option value="กลุ่มวิเคราะห์ วิจัย พืช ปุ๋ย และสิ่งปรับปรุงดิน">กลุ่มวิเคราะห์ วิจัย พืช ปุ๋ย และสิ่งปรับปรุงดิน</option>
-                            <option value="กลุ่มวิจัยแร่และจุลสัณฐานดิน">กลุ่มวิจัยแร่และจุลสัณฐานดิน</option>
-                            <option value="กลุ่มมาตรฐานและพัฒนาระบบการวิเคราะห์">กลุ่มมาตรฐานและพัฒนาระบบการวิเคราะห์</option>
-                            <option value="กลุ่มวิทยบริการ">กลุ่มวิทยบริการ</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg transition-colors">ลงทะเบียน</button>
-                </form>
-            </div>
-        </div>
+    <!-- Sync Indicator -->
+    <div id="syncBadge" class="sync-badge">
+        <i class="fas fa-circle-notch fa-spin text-emerald-400"></i> กำลังซิงค์ข้อมูล...
     </div>
 
-    <script>
-        // --- 1. CONFIGURATION ---
-        const MOCK_DELAY = 250;
-        const API_URL = "https://script.google.com/macros/s/AKfycbzb3O1kWnyJtD7jPor_rfnJOrD9df1Jzjb66QtBXeIzgyKZHXRq8FramTk6RGptFCRKLQ/exec";
-        const SECONDARY_DB_URL = "https://docs.google.com/spreadsheets/d/1mPcLcY-vC3_xpSg8BKYplGoENP4U_koiOgiUKu33P4Q/edit?gid=418256453#gid=418256453";
-        const DEPARTMENTS = ["ฝ่ายบริหารทั่วไป", "กลุ่มวิจัยเคมีดิน", "กลุ่มวิจัยกายภาพดิน", "กลุ่มวิจัยสิ่งแวดล้อม", "กลุ่มวิเคราะห์ วิจัย พืช ปุ๋ย และสิ่งปรับปรุงดิน", "กลุ่มวิจัยแร่และจุลสัณฐานดิน", "กลุ่มมาตรฐานและพัฒนาระบบการวิเคราะห์", "กลุ่มวิทยบริการ"];
+    <!-- Loading Spinner -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <button onclick="showLoading(false)" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 p-2" title="บังคับปิด">
+            <i class="fas fa-times fa-2x"></i>
+        </button>
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-emerald-600 mb-4"></div>
+        <p id="loadingText" class="text-emerald-700 font-bold text-lg animate-pulse">กำลังประมวลผล...</p>
+        <p id="loadingSubText" class="text-sm text-gray-500 mt-2">กรุณารอสักครู่...</p>
+    </div>
+
+    <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden w-full flex-grow">
         
-        let rowsPerPage = 20;
-        let currentUser = null, items = [], events = [], userList = [], isRealMode = true;
-        let statusChartInstance = null, monthlyChartInstance = null, receivedSamplesChartInstance = null, receivedReceiptsChartInstance = null, reportedChartInstance = null, userActivityChartInstance = null;
-        let currentView = 'dashboard';
-        let currentPage = 1, searchTerm = '';
-        let docSettings = {};
+        <!-- Header -->
+        <div class="bg-emerald-600 p-6 text-white relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+                <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" stroke-width="1"/>
+                    </pattern>
+                    <rect width="100%" height="100%" fill="url(#grid)" />
+                </svg>
+            </div>
 
-        const mockItems = [{ id: '1', receiptNo: 'S-66001', qty: 5, dateReceived: '2023-10-01', layer: 'A1', params: 'pH, EC, OM', status: 'Available', holder: '-', disposalPref: 'รับคืน', dateReported: '', disposalStatus: '' }];
-        const mockEvents = [];
-        const mockUsers = [{ username: 'admin', password: 'admin123', name: 'Admin System', group: 'IT Support', status: 'Approved', canReport: true, canManage: true, canDispose: true }];
-
-        // --- 2. CORE HELPER FUNCTIONS (Including loadThaiFont) ---
-        function showLoading(text = "กำลังโหลดข้อมูล...") {
-            const overlay = document.getElementById('loading-overlay');
-            const txt = document.getElementById('loading-text');
-            if (overlay && txt) {
-                txt.textContent = text;
-                overlay.classList.remove('hidden');
-            }
-        }
-
-        function hideLoading() {
-            const overlay = document.getElementById('loading-overlay');
-            if (overlay) overlay.classList.add('hidden');
-        }
-
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobile-overlay');
-            sidebar.classList.toggle('-translate-x-full');
-            overlay.classList.toggle('hidden');
-        }
-
-        function closeSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobile-overlay');
-            if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 768) {
-                sidebar.classList.add('-translate-x-full');
-                overlay.classList.add('hidden');
-            }
-        }
-
-        function updateStatusBadge() { 
-            const badge = document.getElementById('status-badge'); 
-            badge.classList.remove('hidden'); 
-            if (isRealMode) { 
-                badge.className = 'status-badge status-online'; 
-                badge.innerHTML = '<i class="fa-solid fa-wifi"></i> <span>ออนไลน์ (Google Sheet)</span>'; 
-            } else { 
-                badge.className = 'status-badge status-demo'; 
-                badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> <span>โหมดจำลอง (ไม่บันทึก)</span>'; 
-            } 
-        }
-
-        function formatDateTh(dateString, includeTime = true) { 
-            if (!dateString) return '-'; 
-            const date = new Date(dateString); 
-            if (isNaN(date.getTime())) return dateString; 
-            const options = { year: 'numeric', month: 'short', day: 'numeric' }; 
-            if (includeTime) { options.hour = '2-digit'; options.minute = '2-digit'; options.hour12 = false; } 
-            return date.toLocaleString('th-TH', options); 
-        }
-
-        function formatDateForPDF(dateString) { 
-            if (!dateString) return '-'; 
-            const date = new Date(dateString); 
-            if (isNaN(date.getTime())) return dateString; 
-            const day = String(date.getDate()).padStart(2, '0'); 
-            const month = String(date.getMonth() + 1).padStart(2, '0'); 
-            const year = date.getFullYear(); 
-            const hours = String(date.getHours()).padStart(2, '0'); 
-            const minutes = String(date.getMinutes()).padStart(2, '0'); 
-            return `${day}/${month}/${year} ${hours}:${minutes}`; 
-        }
-
-        function calculateDaysRemaining(dateReported) { 
-            if (!dateReported) return -1; 
-            const reported = new Date(dateReported); 
-            const now = new Date(); 
-            const diffTime = Math.abs(now - reported); 
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-            return diffDays; 
-        }
-
-        function updateRowsPerPage(val) { rowsPerPage = parseInt(val); currentPage = 1; renderContent(); }
-
-        function renderPagination(totalItems, onPageChangeName) {
-            const totalPages = Math.ceil(totalItems / rowsPerPage);
-            if (totalPages <= 1) return '';
-            let html = '<div class="flex justify-center items-center gap-2 mt-4 p-4">';
-            html += `<button onclick="${onPageChangeName}(${currentPage - 1})" ${currentPage === 1 ? 'disabled class="opacity-50 cursor-not-allowed"' : ''} class="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50"><i class="fa-solid fa-chevron-left"></i></button>`;
-            html += `<span class="text-sm text-gray-600">หน้า ${currentPage} จาก ${totalPages}</span>`;
-            html += `<button onclick="${onPageChangeName}(${currentPage + 1})" ${currentPage === totalPages ? 'disabled class="opacity-50 cursor-not-allowed"' : ''} class="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50"><i class="fa-solid fa-chevron-right"></i></button>`;
-            html += '</div>';
-            return html;
-        }
-
-        function changePage(newPage) { currentPage = newPage; updateTableData(); }
-        function handleSearch(term) { searchTerm = term.toLowerCase(); currentPage = 1; updateTableData(); }
-        function getUserInfo(username) { if (username === 'admin') return { name: 'Admin System', group: 'IT Support' }; const u = userList.find(user => user.username === username); return u ? { name: u.name, group: u.group } : { name: username, group: '-' }; }
-
-        // ** Moved loadThaiFont here to ensure it's defined early **
-        async function loadThaiFont(doc) { 
-            try { 
-                const res = await fetch("https://raw.githubusercontent.com/google/fonts/main/ofl/sarabun/Sarabun-Regular.ttf"); 
-                if (!res.ok) throw new Error("Font fetch failed"); 
-                const blob = await res.blob(); 
-                const reader = new FileReader(); 
-                return new Promise(resolve => { 
-                    reader.onload = function() { 
-                        const base64 = reader.result.split(',')[1]; 
-                        doc.addFileToVFS('Sarabun-Regular.ttf', base64); 
-                        doc.addFont('Sarabun-Regular.ttf', 'Sarabun', 'normal'); 
-                        doc.setFont('Sarabun'); 
-                        resolve(); 
-                    }; 
-                    reader.readAsDataURL(blob); 
-                }); 
-            } catch (e) { 
-                console.error("Error loading font:", e); 
-                alert("ไม่สามารถโหลดฟอนต์ภาษาไทยได้ (Network Error) ระบบจะใช้ฟอนต์มาตรฐานแทน"); 
-            } 
-        }
-
-        // --- 3. INIT & AUTH ---
-        function init() {
-            localStorage.removeItem('customApiUrl'); 
-            const storedUser = localStorage.getItem('soilAppUser');
-            isRealMode = true; 
-            updateStatusBadge();
-
-            if (storedUser) {
-                try { 
-                    currentUser = JSON.parse(storedUser); 
-                    document.getElementById('login-screen').classList.add('hidden'); 
-                    updateNavAndRedirect(); 
-                } 
-                catch(e) { localStorage.removeItem('soilAppUser'); }
-            }
-        }
-
-        function updateNavAndRedirect() { renderSidebar(); updateNavUser(); refreshData().then(() => router('dashboard')); }
-        function logout() { localStorage.removeItem('soilAppUser'); location.reload(); }
-        function showLoginTab(tab) { document.getElementById('login-error-msg').classList.add('hidden'); if (tab === 'login') { document.getElementById('login-form').classList.remove('hidden'); document.getElementById('register-form').classList.add('hidden'); document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; } else { document.getElementById('login-form').classList.add('hidden'); document.getElementById('register-form').classList.remove('hidden'); document.getElementById('tab-register').className = "flex-1 pb-2 border-b-2 border-emerald-600 font-semibold text-emerald-600"; document.getElementById('tab-login').className = "flex-1 pb-2 border-b-2 border-transparent text-gray-500 hover:text-emerald-600"; } }
-        function updateNavUser() { if(currentUser) document.getElementById('nav-username').textContent = currentUser.name; }
-
-        async function handleLogin(e) {
-            e.preventDefault(); 
-            document.getElementById('login-error-msg').classList.add('hidden');
-            const user = document.getElementById('login-user').value;
-            const pass = document.getElementById('login-pass').value;
-            const remember = document.getElementById('remember-me').checked;
+            <div class="flex flex-col md:flex-row items-center justify-center gap-6 relative z-10">
+                <div class="flex-shrink-0">
+                     <svg width="80" height="80" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-xl hover:scale-105 transition-transform duration-300">
+                        <circle cx="50" cy="50" r="48" fill="white" fill-opacity="0.95"/>
+                        <circle cx="50" cy="50" r="45" stroke="#10B981" stroke-width="2" stroke-dasharray="8 4" stroke-opacity="0.5"/>
+                        <path d="M20 75C20 75 35 65 50 65C65 65 80 75 80 75V85C80 85 65 90 50 90C35 90 20 85 20 85V75Z" fill="#8B4513"/>
+                        <path d="M50 65V40" stroke="#A0522D" stroke-width="4" stroke-linecap="round"/>
+                        <path d="M50 50C50 50 30 45 30 30C30 30 40 30 50 50Z" fill="#4ADE80"/>
+                        <path d="M50 50C50 50 30 45 30 30C30 30 40 30 50 50Z" stroke="#16A34A" stroke-width="1"/>
+                        <path d="M50 45C50 45 75 35 75 20C75 20 60 25 50 45Z" fill="#22C55E"/>
+                        <path d="M50 45C50 45 75 35 75 20C75 20 60 25 50 45Z" stroke="#15803D" stroke-width="1"/>
+                        <path d="M50 40C50 40 50 15 35 25C35 25 45 30 50 40Z" fill="#86EFAC"/>
+                        <circle cx="30" cy="30" r="2" fill="#FBBF24"/>
+                        <circle cx="70" cy="25" r="2" fill="#FBBF24"/>
+                        <circle cx="50" cy="15" r="2" fill="#FBBF24"/>
+                    </svg>
+                </div>
+                <div class="text-center md:text-left">
+                    <h1 class="text-2xl md:text-3xl font-bold tracking-wide text-white drop-shadow-md">
+                        Soil Color Chart Analyzer Pro
+                    </h1>
+                    <p class="mt-2 text-emerald-100 font-light text-sm md:text-base">
+                        <i class="fas fa-flask mr-2"></i>โปรแกรมเทียบค่าสีชุดตรวจดิน
+                    </p>
+                    <div id="dbStatus" class="text-xs text-yellow-200 mt-2 bg-black/20 px-2 py-1 rounded inline-block">
+                        <i class="fas fa-database"></i> สถานะ: พร้อมใช้งาน (Cloud Auto-Sync)
+                    </div>
+                </div>
+            </div>
             
-            showLoading("กำลังตรวจสอบข้อมูล...");
+            <div id="userInfoDisplay" class="absolute top-4 right-4 text-sm hidden z-20">
+                <span id="loggedInUser" class="font-bold mr-2 bg-emerald-700 px-3 py-1 rounded-full bg-opacity-50 text-white"></span>
+                <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-xs transition shadow-md font-bold text-white">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+            
+             <!-- Top Right Status Icon -->
+            <div class="absolute top-4 right-4 z-10 flex gap-4 items-center" id="statusIconContainer">
+                <div id="topRightStatus" class="flex items-center justify-center bg-white/20 backdrop-blur-sm rounded-full w-10 h-10 shadow-lg">
+                    <i class="fas fa-times-circle text-red-500 text-2xl drop-shadow-md"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 md:p-6">
+            <div class="flex border-b mb-6">
+                <button onclick="switchTab('analyze')" id="btn-analyze" class="flex-1 py-3 text-emerald-600 border-b-2 border-emerald-600 font-bold focus:outline-none transition">🔍 วิเคราะห์ผล</button>
+                <button onclick="switchTab('config')" id="btn-config" class="flex-1 py-3 text-gray-500 hover:text-emerald-500 font-medium focus:outline-none transition">⚙️ ระบบจัดการ (Admin)</button>
+            </div>
+
+            <!-- ANALYZE TAB -->
+            <div id="tab-analyze" class="block animate-fade-in">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-8">
+                    <div class="space-y-3 lg:space-y-6">
+                        <div class="bg-white border rounded-lg p-4 shadow-sm">
+                            <label class="font-bold text-gray-700 mb-2 block">1. เลือกธาตุที่ต้องการตรวจ:</label>
+                            <select id="testType" class="w-full border rounded p-2 bg-gray-50 text-gray-700 font-semibold" onchange="analyzeSoil()">
+                                <!-- Options will be populated by JS -->
+                            </select>
+                        </div>
+
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <label class="font-bold text-gray-700 mb-2 block">2. แหล่งที่มาของสี (Source):</label>
+                            <div class="flex gap-2 mb-4">
+                                <button onclick="toggleCamera()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded shadow text-sm">
+                                    <i class="fas fa-camera mr-1"></i> เปิด/ปิด กล้อง
+                                </button>
+                                <button onclick="triggerFileUpload()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded shadow text-sm">
+                                    <i class="fas fa-image mr-1"></i> อัปโหลดรูป
+                                </button>
+                                <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                            </div>
+                            <div id="mediaContainer" class="relative w-full h-64 bg-black rounded-lg overflow-hidden hidden cursor-crosshair group" onclick="handleMediaClick(event)">
+                                <button onclick="switchCamera(event)" id="btnFlipCamera" class="absolute top-2 right-2 bg-white/80 hover:bg-white text-gray-800 p-3 rounded-full shadow-lg z-30 transition transform active:scale-95 hidden">
+                                    <i class="fas fa-sync-alt fa-lg text-emerald-600"></i>
+                                </button>
+                                <video id="videoElement" autoplay playsinline class="absolute top-0 left-0 w-full h-full object-contain hidden opacity-0"></video>
+                                <img id="imagePreview" class="absolute top-0 left-0 w-full h-full object-contain hidden opacity-0" />
+                                <canvas id="canvasElement" class="absolute top-0 left-0 w-full h-full"></canvas>
+                                <!-- Center Reticle for Camera Mode -->
+                                <div id="centerReticle" class="center-reticle hidden"></div>
+                                <!-- Click Marker for Image Mode -->
+                                <div id="colorMarker" class="marker-box hidden"></div>
+                            </div>
+                        </div>
+
+                        <button id="btnManualAnalyze" onclick="analyzeSoil()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-lg shadow-lg text-lg transition transform active:scale-95 hidden">ประมวลผลวิเคราะห์</button>
+                        <p class="text-center text-xs text-gray-400 mt-2" id="autoAnalyzeStatus"></p>
+                    </div>
+
+                    <div class="flex flex-col h-full space-y-4 md:space-y-6">
+                        <!-- Result Section -->
+                        <div class="flex flex-col justify-center items-center bg-emerald-50 rounded-xl border-2 border-emerald-100 p-3 text-center shadow-sm min-h-[120px] relative">
+                            <button onclick="generatePDFReport()" class="absolute top-2 right-2 text-emerald-600 hover:text-emerald-800 p-2 text-xs font-bold border border-emerald-200 rounded hover:bg-emerald-100 transition">
+                                <i class="fas fa-file-pdf fa-lg"></i> Export PDF
+                            </button>
+                            <h3 class="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">ผลการวิเคราะห์</h3>
+                            <div id="resultText" class="text-2xl md:text-5xl font-extrabold text-gray-300 animate-pulse">...</div>
+                            <div id="resultDesc" class="mt-1 text-sm text-gray-600">เลือกธาตุและกำหนดค่าสี</div>
+                        </div>
+
+                        <!-- RGB Adjustment Section (Collapsible) -->
+                        <div id="rgbAdjustSection" class="bg-gray-100 p-4 rounded-lg relative shadow-inner">
+                            <div class="flex justify-between items-center mb-2">
+                                <h2 class="text-xs font-bold text-gray-500 uppercase">3. ค่าสี RGB (ปรับแต่ง)</h2>
+                                <button id="btnPauseAnalysis" onclick="toggleAnalysisPause()" class="text-[10px] bg-white hover:bg-gray-50 text-gray-600 px-2 py-1 rounded border border-gray-300 shadow-sm transition">
+                                    <i class="fas fa-pause mr-1"></i> หยุดอ่านค่า
+                                </button>
+                            </div>
+                            <!-- Compact RGB Input Grid -->
+                            <div class="grid grid-cols-3 gap-2 mb-2">
+                                <div class="flex flex-col items-center">
+                                    <label class="text-xs font-bold text-red-600 mb-1">R</label>
+                                    <input type="number" id="inputR" min="0" max="255" value="128" class="w-full p-2 text-center border rounded text-sm font-mono border-red-200 focus:border-red-500 focus:ring-1 focus:ring-red-200 outline-none transition-colors" oninput="updateInputDisplay()">
+                                </div>
+                                <div class="flex flex-col items-center">
+                                    <label class="text-xs font-bold text-green-600 mb-1">G</label>
+                                    <input type="number" id="inputG" min="0" max="255" value="128" class="w-full p-2 text-center border rounded text-sm font-mono border-green-200 focus:border-green-500 focus:ring-1 focus:ring-green-200 outline-none transition-colors" oninput="updateInputDisplay()">
+                                </div>
+                                <div class="flex flex-col items-center">
+                                    <label class="text-xs font-bold text-blue-600 mb-1">B</label>
+                                    <input type="number" id="inputB" min="0" max="255" value="128" class="w-full p-2 text-center border rounded text-sm font-mono border-blue-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition-colors" oninput="updateInputDisplay()">
+                                </div>
+                            </div>
+                            
+                            <!-- HSV Display Section -->
+                            <div id="hsvDisplayContainer" class="mt-2 p-2 bg-indigo-50 rounded-lg border border-indigo-200 shadow-sm">
+                                <div class="flex justify-between items-center text-indigo-800 mb-1">
+                                    <span class="font-bold text-xs uppercase"><i class="fas fa-palette mr-1"></i> ค่าสี HSV</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-2 text-center text-xs font-mono">
+                                    <div class="bg-white p-1 rounded shadow-sm">
+                                        <div class="text-[10px] text-gray-400">Hue</div>
+                                        <div id="valH" class="font-bold text-indigo-600">0°</div>
+                                    </div>
+                                    <div class="bg-white p-1 rounded shadow-sm">
+                                        <div class="text-[10px] text-gray-400">Sat</div>
+                                        <div id="valS" class="font-bold text-indigo-600">0%</div>
+                                    </div>
+                                    <div class="bg-white p-1 rounded shadow-sm">
+                                        <div class="text-[10px] text-gray-400">Val</div>
+                                        <div id="valV" class="font-bold text-indigo-600">0%</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="brightnessContainer" class="mt-2 p-2 bg-yellow-100 rounded border border-yellow-300 hidden">
+                                <div class="flex justify-between items-center text-yellow-800">
+                                    <span class="font-bold text-xs"><i class="fas fa-sun mr-1"></i> Brightness</span>
+                                    <span id="valBrightness" class="font-mono font-bold text-sm">0</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3 flex items-center gap-3">
+                                <div class="text-xs text-gray-500 font-bold">Preview:</div>
+                                <div id="colorPreview" class="w-full h-8 rounded shadow-inner border border-gray-300 bg-gray-400 transition-colors duration-200"></div>
+                            </div>
+                        </div>
+
+                        <!-- Calibration Section (Collapsible) -->
+                        <div id="calibrationSection" class="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-4">
+                            <h4 class="font-bold text-orange-800 mb-2 text-sm"><i class="fas fa-balance-scale"></i> ตั้งค่าแสงขาว (Calibration)</h4>
+                            <div class="flex gap-2 mb-2">
+                                <button onclick="calibrateSystem()" class="bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded text-sm shadow flex-1">
+                                    <i class="fas fa-magic"></i> Calibrate
+                                </button>
+                                <button onclick="resetCalibration()" class="bg-gray-400 hover:bg-gray-500 text-white py-2 px-4 rounded text-sm shadow">
+                                    <i class="fas fa-undo"></i> Reset
+                                </button>
+                            </div>
+                            <div id="calibrationStatus" class="text-xs text-orange-700 mt-1">
+                                สถานะ: ยังไม่ได้ Calibrate (ใช้ค่าดิบ)
+                            </div>
+                            <div id="lightQualityStatus" class="text-xs font-bold mt-1 text-gray-500">
+                                คุณภาพแสง: รอการวัด...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ADMIN TAB -->
+            <div id="tab-config" class="hidden">
+                <div id="login-panel" class="max-w-sm mx-auto mt-10 p-6 bg-white border rounded-xl shadow-md">
+                    <div class="text-center mb-6">
+                        <div class="bg-emerald-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-2 text-emerald-600"><i class="fas fa-user-lock text-2xl"></i></div>
+                        <h2 class="text-xl font-bold text-gray-800">เข้าสู่ระบบ</h2>
+                    </div>
+                    <form onsubmit="handleLogin(event)">
+                        <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">Username</label><input type="text" id="username" class="w-full px-3 py-2 border rounded focus:outline-none focus:border-emerald-500" placeholder="Username" required></div>
+                        <div class="mb-6"><label class="block text-gray-700 text-sm font-bold mb-2">Password</label><input type="password" id="password" class="w-full px-3 py-2 border rounded focus:outline-none focus:border-emerald-500" placeholder="••••••" required></div>
+                        <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-2 rounded hover:bg-emerald-700 transition">เข้าสู่ระบบ</button>
+                        <p id="loginError" class="text-red-500 text-xs mt-3 text-center hidden">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</p>
+                    </form>
+                </div>
+
+                <div id="admin-panel" class="hidden">
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <div class="w-full md:w-1/4">
+                            <div class="bg-gray-100 rounded-lg p-2 space-y-1">
+                                <button onclick="switchAdminTab('color-config')" id="menu-color-config" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-emerald-700 bg-white shadow"><i class="fas fa-palette w-6"></i> ตั้งค่าสี</button>
+                                <button onclick="switchAdminTab('user-manage')" id="menu-user-manage" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600"><i class="fas fa-users-cog w-6"></i> จัดการผู้ใช้</button>
+                                <button onclick="switchAdminTab('change-pass')" id="menu-change-pass" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600"><i class="fas fa-key w-6"></i> เปลี่ยนรหัสผ่าน</button>
+                                <button onclick="switchAdminTab('system-status')" id="menu-system-status" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600"><i class="fas fa-server w-6"></i> Cloud Status</button>
+                            </div>
+                        </div>
+                        <div class="w-full md:w-3/4 bg-white border rounded-lg p-6">
+                            
+                            <!-- Cloud Status -->
+                            <div id="admin-system-status" class="hidden">
+                                <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">สถานะระบบ Cloud</h3>
+                                <div class="bg-emerald-50 p-4 rounded text-sm text-emerald-800 mb-4 border border-emerald-200">
+                                    <p class="font-bold"><i class="fas fa-wifi"></i> เชื่อมต่อฐานข้อมูลอัตโนมัติแล้ว</p>
+                                    <p class="text-xs mt-2 text-gray-600">URL: ...Script.google.com.../exec</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="forceSyncData()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"><i class="fas fa-sync"></i> ทดสอบการเชื่อมต่อ / บังคับ Sync</button>
+                                    <button onclick="resetToDefaults()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"><i class="fas fa-trash-restore"></i> รีเซ็ตข้อมูลเป็นค่าเริ่มต้น</button>
+                                </div>
+                            </div>
+
+                            <!-- Color Config -->
+                            <div id="admin-color-config" class="block">
+                                <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">จัดการฐานข้อมูลสี (ส่วนตัว)</h3>
+                                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-r space-y-3">
+                                    <h4 class="font-bold text-gray-800 border-b border-yellow-200 pb-1">ตั้งค่าการทำงาน</h4>
+                                    <div class="flex items-center"><input type="checkbox" id="toggleBrightness" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500" onchange="toggleBrightnessSetting()"><label for="toggleBrightness" class="ml-2 text-gray-700 font-medium cursor-pointer">แสดงค่าความสว่าง</label></div>
+                                    <div class="flex items-center"><input type="checkbox" id="toggleRealTime" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500" onchange="toggleRealTimeSetting()"><label for="toggleRealTime" class="ml-2 text-gray-700 font-medium cursor-pointer">วิเคราะห์ผล Real-time</label></div>
+                                    <div class="mt-3 border-t border-yellow-200 pt-3">
+                                        <label class="block text-gray-700 font-medium mb-1 text-sm"><i class="fas fa-video mr-1"></i> เลือกกล้อง</label>
+                                        <div class="flex gap-2"><select id="cameraSelect" class="flex-1 p-2 border rounded text-sm bg-white" onchange="updateCameraSelection()"><option value="">-- อัตโนมัติ --</option></select><button onclick="populateCameraList()" class="bg-yellow-500 text-white px-3 py-1 rounded text-xs hover:bg-yellow-600" title="Refresh"><i class="fas fa-sync"></i></button></div>
+                                    </div>
+                                    
+                                    <!-- New Settings: UI Visibility & Test Types -->
+                                    <div class="mt-3 border-t border-yellow-200 pt-3">
+                                        <label class="block text-gray-700 font-medium mb-2 text-sm"><i class="fas fa-cogs mr-1"></i> ตั้งค่าการแสดงผล (Interface)</label>
+                                        <div class="space-y-2" id="settingsContainer">
+                                            <!-- Will be populated by JS -->
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex justify-between items-center mt-6 mb-2">
+                                    <h4 class="font-bold text-gray-700">ตารางช่วงสี</h4>
+                                    <div class="flex gap-2">
+                                        <button onclick="exportXLSX()" class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 shadow"><i class="fas fa-file-excel"></i> Export</button>
+                                        <button onclick="triggerImportXLSX()" class="bg-orange-500 text-white px-3 py-1 rounded text-xs hover:bg-orange-600 shadow"><i class="fas fa-file-import"></i> Import</button>
+                                        <input type="file" id="xlsxFileInput" accept=".xlsx" class="hidden" onchange="handleImportXLSX(event)">
+                                    </div>
+                                </div>
+                                
+                                <div class="overflow-x-auto mb-6 max-h-96 overflow-y-auto border rounded"><table class="w-full text-sm text-left text-gray-500"><thead class="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0"><tr>
+                                    <th class="px-3 py-3">Type</th><th class="px-3 py-3">Level</th>
+                                    <th class="px-1 py-3 text-center bg-red-50 text-red-600">R</th><th class="px-1 py-3 text-center bg-green-50 text-green-600">G</th><th class="px-1 py-3 text-center bg-blue-50 text-blue-600">B</th>
+                                    <th class="px-1 py-3 text-center bg-indigo-50 text-indigo-600">H</th><th class="px-1 py-3 text-center bg-indigo-50 text-indigo-600">S</th><th class="px-1 py-3 text-center bg-indigo-50 text-indigo-600">V</th>
+                                    <th class="px-3 py-3 text-center">Action</th>
+                                </tr></thead><tbody id="configTableBody"></tbody></table></div>
+                                
+                                <div class="bg-gray-50 p-4 rounded-lg border">
+                                    <h4 class="font-bold text-sm mb-2 text-gray-700" id="formTitle">เพิ่มช่วงสีใหม่</h4>
+                                    
+                                    <!-- RGB Inputs -->
+                                    <div class="text-xs font-bold text-gray-500 mb-1">ข้อมูลทั่วไป & RGB</div>
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                                        <input id="newType" type="text" placeholder="Type" class="p-2 border rounded text-sm">
+                                        <input id="newLevel" type="text" placeholder="Level" class="p-2 border rounded text-sm">
+                                        <input id="newRMin" type="number" placeholder="R Min" class="p-2 border rounded text-sm border-red-200">
+                                        <input id="newRMax" type="number" placeholder="R Max" class="p-2 border rounded text-sm border-red-200">
+                                        <input id="newGMin" type="number" placeholder="G Min" class="p-2 border rounded text-sm border-green-200">
+                                        <input id="newGMax" type="number" placeholder="G Max" class="p-2 border rounded text-sm border-green-200">
+                                        <input id="newBMin" type="number" placeholder="B Min" class="p-2 border rounded text-sm border-blue-200">
+                                        <input id="newBMax" type="number" placeholder="B Max" class="p-2 border rounded text-sm border-blue-200">
+                                    </div>
+                                    
+                                    <!-- HSV Inputs (New) -->
+                                    <div class="text-xs font-bold text-indigo-500 mb-1 mt-3">ช่วงค่า HSV (ถ้าไม่ระบุจะใช้ RGB อย่างเดียว)</div>
+                                    <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-2">
+                                        <input id="newHMin" type="number" placeholder="H Min" class="p-2 border rounded text-sm border-indigo-200">
+                                        <input id="newHMax" type="number" placeholder="H Max" class="p-2 border rounded text-sm border-indigo-200">
+                                        <input id="newSMin" type="number" placeholder="S Min" class="p-2 border rounded text-sm border-indigo-200">
+                                        <input id="newSMax" type="number" placeholder="S Max" class="p-2 border rounded text-sm border-indigo-200">
+                                        <input id="newVMin" type="number" placeholder="V Min" class="p-2 border rounded text-sm border-indigo-200">
+                                        <input id="newVMax" type="number" placeholder="V Max" class="p-2 border rounded text-sm border-indigo-200">
+                                    </div>
+
+                                    <div class="flex gap-2 mt-2">
+                                        <button id="btnSaveRange" onclick="saveRange()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm flex-1"><i class="fas fa-plus"></i> เพิ่มข้อมูล</button>
+                                        <button id="btnCancelEdit" onclick="cancelEdit()" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500 text-sm hidden">ยกเลิก</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="admin-user-manage" class="hidden">
+                                <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">จัดการผู้ใช้ (Admin Only)</h3>
+                                <div class="mb-6"><table class="w-full text-sm text-left text-gray-500 border rounded"><thead class="bg-gray-100 text-gray-700"><tr><th class="px-4 py-2">Username</th><th class="px-4 py-2">Role</th><th class="px-4 py-2 text-right">Action</th></tr></thead><tbody id="userTableBody"></tbody></table></div>
+                                <div class="bg-gray-50 p-4 rounded-lg border"><h4 class="font-bold text-sm mb-2 text-gray-700">เพิ่มผู้ใช้ใหม่</h4><div class="flex gap-2"><input id="newUsername" type="text" placeholder="Username" class="flex-1 p-2 border rounded text-sm"><input id="newPassword" type="text" placeholder="Password" class="flex-1 p-2 border rounded text-sm"><button onclick="addUser()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm">สร้าง</button></div></div>
+                            </div>
+
+                            <div id="admin-change-pass" class="hidden">
+                                <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">เปลี่ยนรหัสผ่านส่วนตัว</h3>
+                                <div class="max-w-md"><div class="mb-4"><label class="block text-gray-700 text-sm mb-1">รหัสผ่านใหม่</label><input type="password" id="changeNewPass" class="w-full p-2 border rounded"></div><div class="mb-4"><label class="block text-gray-700 text-sm mb-1">ยืนยันรหัสผ่านใหม่</label><input type="password" id="changeConfirmPass" class="w-full p-2 border rounded"></div><button onclick="changePassword()" class="bg-orange-500 text-white px-6 py-2 rounded hover:bg-orange-600">บันทึกรหัสผ่าน</button></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden A4 Template for PDF Export -->
+    <div id="reportTemplate" class="bg-white p-8 hidden text-black" style="width: 210mm; min-height: 297mm; font-family: 'Sarabun', sans-serif;">
+        <div class="flex justify-between items-center border-b-2 border-emerald-600 pb-4 mb-6">
+            <div class="flex items-center gap-4">
+                <div class="text-4xl text-emerald-600"><i class="fas fa-flask"></i></div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">รายงานผลวิเคราะห์ชุดตรวจดิน</h1>
+                    <p class="text-sm text-gray-500">Soil Color Chart Analyzer Pro Report</p>
+                </div>
+            </div>
+            <div class="text-right text-sm text-gray-600">
+                <p>วันที่: <span id="reportDate"></span></p>
+                <p>ผู้ทดสอบ: <span id="reportUser"></span></p>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-8">
+            <div>
+                <div class="bg-gray-100 p-2 rounded-lg border border-gray-300 flex justify-center items-center" style="height: 300px;">
+                    <img id="reportImage" class="max-w-full max-h-full object-contain" />
+                </div>
+                <p class="text-center text-xs text-gray-400 mt-2">* จุดสีเขียวแสดงตำแหน่งที่ใช้คำนวณค่าสี</p>
+            </div>
+            <div class="space-y-6">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-6 text-center">
+                    <h3 class="text-emerald-800 font-bold text-sm uppercase tracking-wide">ผลการวิเคราะห์ (Result)</h3>
+                    <div id="reportResultLevel" class="text-4xl font-extrabold text-emerald-600 mt-2">N/A</div>
+                    <div id="reportResultType" class="text-gray-600 font-medium mt-1">N/A</div>
+                </div>
+                <table class="w-full text-sm border-collapse">
+                    <tr class="border-b"><th class="py-2 text-left text-gray-500">พารามิเตอร์</th><th class="py-2 text-right text-gray-800">ค่าที่วัดได้</th></tr>
+                    <tr class="border-b"><td class="py-2">ค่าสีแดง (R)</td><td class="py-2 text-right font-mono" id="reportR">0</td></tr>
+                    <tr class="border-b"><td class="py-2">ค่าสีเขียว (G)</td><td class="py-2 text-right font-mono" id="reportG">0</td></tr>
+                    <tr class="border-b"><td class="py-2">ค่าสีน้ำเงิน (B)</td><td class="py-2 text-right font-mono" id="reportB">0</td></tr>
+                    
+                    <!-- Added HSV to PDF -->
+                    <tr class="border-b"><td class="py-2">Hue (H)</td><td class="py-2 text-right font-mono" id="reportH">0°</td></tr>
+                    <tr class="border-b"><td class="py-2">Saturation (S)</td><td class="py-2 text-right font-mono" id="reportS">0%</td></tr>
+                    <tr class="border-b"><td class="py-2">Value (V)</td><td class="py-2 text-right font-mono" id="reportV">0%</td></tr>
+                    
+                    <tr><td class="py-2 font-bold text-yellow-700">ความสว่าง (Brightness)</td><td class="py-2 text-right font-bold text-yellow-700 font-mono" id="reportBrightness">0</td></tr>
+                </table>
+            </div>
+        </div>
+        <div class="mt-12 text-center text-xs text-gray-400 border-t pt-4">
+            <p>รายงานนี้สร้างโดยระบบอัตโนมัติจากโปรแกรม Soil Color Chart Analyzer Pro</p>
+        </div>
+    </div>
+
+    <div class="text-center mt-4"><p class="text-xs font-mono credit-text opacity-70 hover:opacity-100 transition duration-300">✨ Design by AAAmacky</p></div>
+
+<script>
+    // --- STORAGE ENGINE (HARDCODED) ---
+    const HARDCODED_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxSscpgNcVG9vAvwH6Ccw44AQbh6LtE9Pwp7dfBIw35OeG4SZfTYg3vqmqCS3eCQYRJ/exec';
+
+    const StorageEngine = {
+        async get(key) {
             try {
-                const res = await apiCall('login', { username: user, password: pass }, false); 
-                if (res.status === 'success') {
-                    showLoading("กำลังเข้าสู่ระบบ...");
-                    currentUser = res.user;
-                    if (remember) localStorage.setItem('soilAppUser', JSON.stringify(currentUser));
-                    
-                    document.getElementById('login-screen').classList.add('hidden');
-                    renderSidebar();
-                    updateNavUser();
-                    
-                    showLoading("กำลังดาวน์โหลดข้อมูลล่าสุด...");
-                    await refreshData();
-                    router('dashboard');
-                } else {
-                    hideLoading();
-                    const errorDiv = document.getElementById('login-error-msg');
-                    errorDiv.querySelector('span').textContent = res.message || "เกิดข้อผิดพลาดในการเข้าสู่ระบบ";
-                    errorDiv.classList.remove('hidden');
+                const response = await fetch(`${HARDCODED_SHEET_URL}?action=read&key=${encodeURIComponent(key)}&t=${Date.now()}`);
+                const result = await response.json();
+                if(result.status === 'success') {
+                    if(result.data) localStorage.setItem(key, JSON.stringify(result.data));
+                    return result.data ? JSON.stringify(result.data) : null;
                 }
-            } catch (err) {
-                hideLoading();
-                alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message);
-            }
-        }
+            } catch(e) { console.error("Cloud Read Error", e); }
+            return localStorage.getItem(key); 
+        },
 
-        async function handleRegister(e) {
-            e.preventDefault();
-            const pass = document.getElementById('reg-pass').value;
-            const passConfirm = document.getElementById('reg-pass-confirm').value;
-
-            if (pass !== passConfirm) {
-                alert("รหัสผ่านไม่ตรงกัน กรุณาตรวจสอบอีกครั้ง");
-                return;
-            }
-
-            const payload = { 
-                username: document.getElementById('reg-user').value, 
-                password: pass, 
-                name: document.getElementById('reg-name').value, 
-                group: document.getElementById('reg-group').value 
-            };
-            
-            showLoading("กำลังลงทะเบียน...");
-            const res = await apiCall('register', payload, false); 
-            hideLoading();
-
-            if (res.status === 'success') { 
-                alert('ลงทะเบียนสำเร็จ! โปรดแจ้ง Admin เพื่อทำการอนุมัติสิทธิ์ก่อนเริ่มใช้งาน'); 
-                showLoginTab('login'); 
-            } else { 
-                alert(res.message); 
-            }
-        }
-
-        // --- 4. API CALL FUNCTION ---
-        async function apiCall(action, payload = {}, autoHideLoading = true) {
-            if(autoHideLoading) showLoading("กำลังประมวลผล...");
-            
-            if (!isRealMode) {
-                return new Promise((resolve) => {
-                    setTimeout(() => {
-                        if(autoHideLoading) hideLoading();
-                        let result = { status: 'success' };
-                        if (action === 'login') { const user = mockUsers.find(u => u.username === payload.username && u.password === payload.password); if (user) result.user = user; else result = { status: 'error', message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' }; }
-                        else if (action === 'getItems') { result.items = [...mockItems]; }
-                        else if (action === 'getHistory') { result.events = [...mockEvents]; }
-                        else if (action === 'getUsers') { result.users = mockUsers; }
-                        else if (action === 'getSettings') { result.settings = docSettings; }
-                        else if (action === 'saveSettings') { 
-                             if(!docSettings[payload.type]) docSettings[payload.type] = {};
-                             docSettings[payload.type] = payload.settings;
-                             result.message = "Saved"; 
-                        }
-                        else if (action === 'deleteItem') { const idx = mockItems.findIndex(i => i.id === payload.id); if(idx > -1) mockItems.splice(idx, 1); result.message = "ลบสำเร็จ"; }
-                        resolve(result);
-                    }, MOCK_DELAY);
-                });
-            } else {
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 30000); 
-                    const response = await fetch(API_URL, {
-                        method: 'POST',
-                        redirect: 'follow',
-                        headers: { "Content-Type": "text/plain;charset=utf-8" },
-                        body: JSON.stringify({ action, ...payload }),
-                        signal: controller.signal
-                    });
-                    clearTimeout(timeoutId);
-                    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-                    const text = await response.text();
-                    try {
-                        const data = JSON.parse(text);
-                        if(autoHideLoading) hideLoading();
-                        return data;
-                    } catch (jsonErr) { throw new Error("Invalid JSON response from server"); }
-                } catch (e) {
-                    if(autoHideLoading) hideLoading();
-                    console.error("API Call Error:", e);
-                    return { status: 'error', message: e.message };
-                }
-            }
-        }
-
-        async function refreshData() {
-            const [itemRes, eventRes, userRes, settingRes] = await Promise.all([
-                apiCall('getItems', {}, false),
-                apiCall('getHistory', {}, false),
-                apiCall('getUsers', {}, false),
-                apiCall('getSettings', {}, false)
-            ]);
-            
-            if(itemRes && itemRes.status === 'success') items = itemRes.items || [];
-            if(eventRes && eventRes.status === 'success') events = eventRes.events || [];
-            if(userRes && userRes.status === 'success') userList = userRes.users || [];
-            if(settingRes && settingRes.status === 'success' && settingRes.settings) docSettings = settingRes.settings;
-            
-            hideLoading();
-        }
-
-        // --- 5. RENDER LOGIC ---
-        function renderSidebar() {
-            const nav = document.getElementById('nav-container');
-            if (!currentUser) return;
-            const isAdmin = currentUser.username === 'admin';
-            const canReport = isAdmin || currentUser.canReport === true;
-            let html = `<button id="nav-dashboard" onclick="router('dashboard')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors"><i class="fa-solid fa-chart-pie w-6"></i> <span>แดชบอร์ด</span></button><button id="nav-borrow" onclick="router('borrow')" class="nav-item-highlight w-full text-left px-4 py-3 rounded-lg flex items-center space-x-3 transition-colors shadow-sm mb-2"><i class="fa-solid fa-hand-holding w-6"></i> <span>เบิก-คืน ตัวอย่าง</span></button><button id="nav-status" onclick="router('status')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors"><i class="fa-solid fa-list-check w-6"></i> <span>สถานะตัวอย่างทั้งหมด</span></button><button id="nav-report" onclick="router('report')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-blue-300"><i class="fa-solid fa-clipboard-check w-6"></i> <span>รายงานผล</span></button><button id="nav-dispose" onclick="router('dispose')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-orange-300"><i class="fa-solid fa-trash-can-arrow-up w-6"></i> <span>จำหน่ายตัวอย่าง</span></button><button id="nav-return-customer" onclick="router('return_customer')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-teal-300"><i class="fa-solid fa-rotate-left"></i> <span>การคืนตัวอย่าง</span></button><button id="nav-items" onclick="router('items')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-emerald-300"><i class="fa-solid fa-box-archive w-6"></i> <span>จัดการตัวอย่างดิน</span></button>`;
-            if (isAdmin) html += `<div class="my-2 border-t border-slate-600"></div><button id="nav-users" onclick="router('users')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors text-purple-300"><i class="fa-solid fa-users-gear w-6"></i> <span>จัดการผู้ใช้งาน (Admin)</span></button>`;
-            html += `<button id="nav-history" onclick="router('history')" class="nav-item w-full text-left px-4 py-3 rounded-lg hover:bg-slate-700 flex items-center space-x-3 transition-colors"><i class="fa-solid fa-clock-rotate-left w-6"></i> <span>ประวัติ & รายงาน</span></button>`;
-            nav.innerHTML = html;
-        }
-
-        async function router(viewName) {
-            currentView = viewName; currentPage = 1; searchTerm = ''; closeSidebar();
-            
-            const titles = { 'dashboard': 'แดชบอร์ดภาพรวม', 'status': 'สถานะตัวอย่างดิน', 'items': 'จัดการตัวอย่างดิน', 'borrow': 'เบิก-คืน', 'return_customer': 'การคืนตัวอย่าง', 'dispose': 'จำหน่ายตัวอย่าง', 'report': 'รายงานผล', 'history': 'ประวัติ', 'users': 'จัดการผู้ใช้', 'profile': 'ข้อมูลส่วนตัว' };
-            const headerTitle = document.getElementById('header-title');
-            if(headerTitle) headerTitle.textContent = titles[viewName] || 'Soilsheif Pro System';
-
-            const container = document.getElementById('content-area');
-            document.querySelectorAll('.nav-item, .nav-item-highlight').forEach(el => { el.classList.remove('active'); el.classList.remove('bg-emerald-600'); });
-            const activeNav = document.getElementById(`nav-${viewName}`);
-            if(activeNav) activeNav.classList.add('active');
-
-            if (viewName === 'dashboard') renderDashboard(container);
-            else renderContent();
-        }
-
-        function renderDashboard(container) {
-            const totalReceipts = items.length;
-            const totalQty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
-            const borrowed = items.filter(i => i.status === 'Borrowed').length;
-            const available = totalReceipts - borrowed;
-
-            const stats = {};
-            const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-            
-            // Collect User Activity Stats (Monthly Reset Logic)
-            const userActivity = {};
-            const now = new Date();
-            const currentMonth = now.getMonth();
-            const currentYear = now.getFullYear();
-
-            events.forEach(e => {
-                const eventDate = new Date(e.date);
-                if (eventDate.getMonth() === currentMonth && eventDate.getFullYear() === currentYear) {
-                    const u = e.user || 'Unknown';
-                    userActivity[u] = (userActivity[u] || 0) + 1;
-                }
+        async set(key, value) {
+            localStorage.setItem(key, value);
+            // Optimistic save (no await) - Fire and forget
+            fetch(`${HARDCODED_SHEET_URL}?action=write&key=${encodeURIComponent(key)}`, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: value
+            }).then(() => {
+                showSyncBadge(false);
+                showToast("บันทึกข้อมูลลง Cloud แล้ว");
+            }).catch(e => { 
+                console.error("Cloud Write Error", e);
+                showSyncBadge(false);
+                showToast("บันทึก Cloud ล้มเหลว (ใช้ในเครื่อง)", "error");
             });
-            const sortedUsers = Object.keys(userActivity).sort((a,b) => userActivity[b] - userActivity[a]).slice(0, 5);
-            const userData = sortedUsers.map(u => userActivity[u]);
-            
-            items.forEach(item => {
-                // 1. Received Stats
-                if(item.dateReceived) {
-                    const d = new Date(item.dateReceived);
-                    if(!isNaN(d)) {
-                         const m = d.getMonth();
-                         const y = d.getFullYear() + 543;
-                         const k = `${monthNames[m]} ${y.toString().slice(-2)}`; 
-                         if(!stats[k]) stats[k] = { receiptCount: 0, sampleCount: 0, reportedSampleCount: 0, sort: d.getTime() };
-                         stats[k].receiptCount++;
-                         stats[k].sampleCount += (Number(item.qty) || 0);
-                    }
-                }
-                
-                // 2. Reported Stats (Count Samples)
-                if (item.dateReported) {
-                    const d = new Date(item.dateReported);
-                    if(!isNaN(d)) {
-                         const m = d.getMonth();
-                         const y = d.getFullYear() + 543;
-                         const k = `${monthNames[m]} ${y.toString().slice(-2)}`; 
-                         
-                         if(!stats[k]) stats[k] = { receiptCount: 0, sampleCount: 0, reportedSampleCount: 0, sort: d.getTime() };
-                         stats[k].reportedSampleCount += (Number(item.qty) || 0);
-                    }
-                }
+            showSyncBadge(true, "กำลังบันทึกข้อมูล...");
+        }
+    };
+
+    // --- GLOBAL STATE ---
+    const ALL_TEST_TYPES = ['N', 'Nitrate', 'P', 'K', 'Soil Respiration', 'pH'];
+    let users = [];
+    let currentUser = null;
+    let mySoilData = []; 
+    let myPreferences = { 
+        showBrightness: false, 
+        useRealTimeAnalysis: true, 
+        selectedCameraId: '',
+        showRGBAdjust: true, // New
+        showCalibration: true, // New
+        visibleTestTypes: ['N', 'Nitrate', 'P', 'K', 'Soil Respiration', 'pH'] // New
+    };
+    let editIndex = -1; // -1 means add mode
+    let isCameraActive = false;
+    let isAnalysisPaused = false; 
+    let markerPosition = null; 
+    let currentFacingMode = 'environment';
+    
+    // Calibration State
+    let calibrationOffsets = { r: 0, g: 0, b: 0 };
+    let lastRawRGB = { r: 0, g: 0, b: 0 }; // Stores raw reading for calibration
+    const MARKER_SIZE = 30;
+
+    // --- DEFAULTS ---
+    const DEFAULT_USERS = [
+        { id: 1, username: 'admin', password: 'admin123', role: 'admin' }, 
+        { id: 2, username: 'staff', password: '123', role: 'user' }
+    ];
+    // Populate defaults with empty HSV ranges for backward compatibility logic
+    // Structure: r: [min, max], h: [min, max] (optional)
+    const DEFAULT_SOIL_DATA = [
+        { type: 'N', level: 'ต่ำ (Low)', r: [200, 255], g: [180, 230], b: [180, 230] }, 
+        { type: 'N', level: 'ปานกลาง (Medium)', r: [200, 255], g: [100, 179], b: [100, 179] },
+        { type: 'N', level: 'สูง (High)', r: [150, 255], g: [0, 99], b: [0, 99] },
+        { type: 'Nitrate', level: 'ต่ำ (0-10)', r: [240, 255], g: [240, 255], b: [240, 255] },
+        { type: 'Nitrate', level: 'ปานกลาง (10-25)', r: [230, 250], g: [200, 220], b: [230, 250] },
+        { type: 'Nitrate', level: 'สูง (>25)', r: [200, 230], g: [150, 180], b: [200, 230] },
+        { type: 'P', level: 'ต่ำ (Low)', r: [180, 220], g: [180, 220], b: [220, 255] },
+        { type: 'P', level: 'ปานกลาง (Medium)', r: [100, 179], g: [100, 179], b: [100, 179] },
+        { type: 'P', level: 'สูง (High)', r: [0, 99], g: [0, 99], b: [150, 255] },
+        { type: 'K', level: 'ต่ำ (Low)', r: [240, 255], g: [240, 255], b: [200, 240] },
+        { type: 'K', level: 'สูง (High)', r: [200, 230], g: [200, 230], b: [100, 180] },
+        { type: 'Soil Respiration', level: 'ต่ำ (Low)', r: [200, 220], g: [200, 220], b: [200, 220] }, 
+        { type: 'Soil Respiration', level: 'ปานกลาง (Medium)', r: [150, 180], g: [150, 180], b: [150, 180] },
+        { type: 'Soil Respiration', level: 'สูง (High)', r: [100, 130], g: [100, 130], b: [100, 130] },
+        { type: 'pH', level: '4.5 (กรดจัด)', r: [255, 255], g: [150, 180], b: [150, 180] }, 
+        { type: 'pH', level: '7.0 (กลาง)', r: [100, 150], g: [200, 250], b: [100, 150] } 
+    ];
+
+    // --- HELPER FUNCTIONS ---
+    function rgbToHsv(r, g, b) {
+        r /= 255, g /= 255, b /= 255;
+        var max = Math.max(r, g, b), min = Math.min(r, g, b);
+        var h, s, v = max;
+        var d = max - min;
+        s = max == 0 ? 0 : d / max;
+        if (max == min) { h = 0; } 
+        else {
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+        return { h: Math.round(h * 360), s: Math.round(s * 100), v: Math.round(v * 100) };
+    }
+
+    function populateCameraList() {
+        const select = document.getElementById('cameraSelect');
+        if (!select) return;
+        select.innerHTML = '<option value="">-- อัตโนมัติ --</option>';
+        navigator.mediaDevices.enumerateDevices().then(devices => {
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            videoDevices.forEach((device, index) => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Camera ${index + 1}`; 
+                if(device.deviceId === myPreferences.selectedCameraId) option.selected = true;
+                select.appendChild(option);
             });
+        });
+    }
 
-            const sortedKeys = Object.keys(stats).sort((a,b) => stats[a].sort - stats[b].sort);
-            const labels = sortedKeys;
-            const dataReceipts = sortedKeys.map(k => stats[k].receiptCount);
-            const dataSamples = sortedKeys.map(k => stats[k].sampleCount);
-            const dataReportedSamples = sortedKeys.map(k => stats[k].reportedSampleCount);
+    function toggleAnalysisPause() {
+        isAnalysisPaused = !isAnalysisPaused;
+        const btn = document.getElementById('btnPauseAnalysis');
+        if(!btn) return;
+        
+        const video = document.getElementById('videoElement');
 
-            const html = `
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-emerald-500"><div><p class="text-sm text-gray-500">จำนวนเลขรับทั้งหมด</p><p class="text-3xl font-bold">${totalReceipts}</p></div></div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-cyan-500"><div><p class="text-sm text-gray-500">จำนวนตัวอย่างดินทั้งหมด</p><p class="text-3xl font-bold">${totalQty}</p></div></div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500"><div><p class="text-sm text-gray-500">เลขรับพร้อมเบิก</p><p class="text-3xl font-bold">${available}</p></div></div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-orange-500"><div><p class="text-sm text-gray-500">เลขรับที่กำลังถูกเบิก</p><p class="text-3xl font-bold">${borrowed}</p></div></div>
-                </div>
-                
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                     <div class="bg-white p-6 rounded-xl shadow-sm"><h3 class="font-bold mb-4">สถานะตัวอย่าง (เลขรับ)</h3><canvas id="statusChart"></canvas></div>
-                     
-                     <div class="bg-white p-6 rounded-xl shadow-sm">
-                        <h3 class="font-bold mb-4">ผู้ใช้งานที่มีความเคลื่อนไหวสูงสุด (เดือนนี้)</h3>
-                        <canvas id="userActivityChart"></canvas>
-                     </div>
-                </div>
-                
-                <div class="space-y-8">
-                    <div class="bg-white p-6 rounded-xl shadow-sm">
-                        <h3 class="font-bold mb-4 text-slate-800">สถิติการรับตัวอย่างรายเดือน (จำนวนตัวอย่างดิน)</h3>
-                        <div class="h-80"><canvas id="receivedSamplesChart"></canvas></div>
-                    </div>
-                    
-                    <div class="bg-white p-6 rounded-xl shadow-sm">
-                        <h3 class="font-bold mb-4 text-slate-800">สถิติการรับตัวอย่างรายเดือน (จำนวนเลขรับ)</h3>
-                        <div class="h-80"><canvas id="receivedReceiptsChart"></canvas></div>
-                    </div>
-                    
-                    <div class="bg-white p-6 rounded-xl shadow-sm">
-                        <h3 class="font-bold mb-4 text-slate-800">สถิติการรายงานผลรายเดือน (จำนวนตัวอย่างดิน)</h3>
-                        <div class="h-80"><canvas id="reportedChart"></canvas></div>
-                    </div>
-                </div>
-            `;
-
-            container.innerHTML = html;
-            
-            setTimeout(() => { 
-                if (statusChartInstance) statusChartInstance.destroy();
-                const statusCtx = document.getElementById('statusChart');
-                if (statusCtx) {
-                    Chart.register(ChartDataLabels);
-                    statusChartInstance = new Chart(statusCtx.getContext('2d'), { 
-                        type: 'doughnut', 
-                        data: { labels: ['เลขรับพร้อมเบิก', 'เลขรับที่กำลังถูกเบิก'], datasets: [{ data: [available, borrowed], backgroundColor: ['#10b981', '#f97316'], borderWidth: 0 }] }, 
-                        options: { responsive: true, cutout: '70%', plugins: { datalabels: { color: '#fff', font: { weight: 'bold', size: 14 } } } } 
-                    });
-                }
-                
-                if(userActivityChartInstance) userActivityChartInstance.destroy();
-                const userActivityCtx = document.getElementById('userActivityChart');
-                if (userActivityCtx) {
-                    userActivityChartInstance = new Chart(userActivityCtx.getContext('2d'), {
-                        type: 'bar', indexAxis: 'y', 
-                        data: { labels: sortedUsers, datasets: [{ label: 'ครั้ง', data: userData, backgroundColor: ['#8b5cf6', '#ec4899', '#f43f5e', '#a855f7', '#6366f1'], borderRadius: 4 }] },
-                        options: { responsive: true, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', color: '#666', font: { weight: 'bold' } } } }
-                    });
-                }
-
-                if(receivedSamplesChartInstance) receivedSamplesChartInstance.destroy();
-                const recSmpCtx = document.getElementById('receivedSamplesChart');
-                if (recSmpCtx) {
-                    receivedSamplesChartInstance = new Chart(recSmpCtx.getContext('2d'), {
-                        type: 'bar', data: { labels: labels, datasets: [{ label: 'จำนวนตัวอย่าง', data: dataSamples, backgroundColor: '#0ea5e9', borderRadius: 4 }] },
-                        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { datalabels: { anchor: 'end', align: 'top', color: '#666', font: { weight: 'bold' } } } }
-                    });
-                }
-
-                if(receivedReceiptsChartInstance) receivedReceiptsChartInstance.destroy();
-                const recRecCtx = document.getElementById('receivedReceiptsChart');
-                if (recRecCtx) {
-                    receivedReceiptsChartInstance = new Chart(recRecCtx.getContext('2d'), {
-                        type: 'bar', data: { labels: labels, datasets: [{ label: 'จำนวนเลขรับ', data: dataReceipts, backgroundColor: '#8b5cf6', borderRadius: 4 }] },
-                        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { datalabels: { anchor: 'end', align: 'top', color: '#666', font: { weight: 'bold' } } } }
-                    });
-                }
-
-                if(reportedChartInstance) reportedChartInstance.destroy();
-                const repSmpCtx = document.getElementById('reportedChart');
-                if (repSmpCtx) {
-                    reportedChartInstance = new Chart(repSmpCtx.getContext('2d'), {
-                        type: 'bar', data: { labels: labels, datasets: [{ label: 'จำนวนตัวอย่างที่รายงานผล', data: dataReportedSamples, backgroundColor: '#10b981', borderRadius: 4 }] },
-                        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { datalabels: { anchor: 'end', align: 'top', color: '#666', font: { weight: 'bold' } } } }
-                    });
-                }
-            }, 100);
+        if (isAnalysisPaused) {
+            // Pause
+            btn.innerHTML = '<i class="fas fa-play mr-1"></i> อ่านต่อ';
+            btn.className = "text-[10px] bg-green-50 hover:bg-green-100 text-green-700 px-2 py-1 rounded border border-green-200 shadow-sm transition";
+            if (isCameraActive && video) video.pause(); // Stop video stream
+        } else {
+            // Resume
+            btn.innerHTML = '<i class="fas fa-pause mr-1"></i> หยุดอ่านค่า';
+            btn.className = "text-[10px] bg-white hover:bg-gray-50 text-gray-600 px-2 py-1 rounded border border-gray-300 shadow-sm transition";
+             if (isCameraActive && video) video.play(); // Resume video stream
         }
+    }
 
-        function renderContent() {
-            const container = document.getElementById('content-area');
-            const canAct = currentUser.username === 'admin' || currentUser.canManage === true;
-            const paginationSelect = `
-                <select onchange="updateRowsPerPage(this.value)" class="p-2 border rounded text-xs ml-2 bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none">
-                    <option value="20" ${rowsPerPage == 20 ? 'selected' : ''}>20 แถว</option>
-                    <option value="50" ${rowsPerPage == 50 ? 'selected' : ''}>50 แถว</option>
-                    <option value="100" ${rowsPerPage == 100 ? 'selected' : ''}>100 แถว</option>
-                    <option value="10000" ${rowsPerPage == 10000 ? 'selected' : ''}>ทั้งหมด</option>
-                </select>
-            `;
+    function analyzeSoil() {
+        const inputR = document.getElementById('inputR');
+        if(!inputR) return;
+        const r = parseInt(inputR.value);
+        const g = parseInt(document.getElementById('inputG').value);
+        const b = parseInt(document.getElementById('inputB').value);
+        const type = document.getElementById('testType').value;
+        const candidates = mySoilData.filter(d => d.type === type);
+        let match = null, closest = null, minD = Infinity;
 
-            const isAdmin = currentUser.username === 'admin';
-            let settingsBtn = '';
-            if (isAdmin && ['items', 'report', 'dispose', 'return_customer', 'history', 'users'].includes(currentView)) {
-                settingsBtn = `<button onclick="openSettingsModal('${currentView}')" class="ml-2 btn-secondary text-xs px-2 py-1"><i class="fa-solid fa-cog"></i></button>`;
+        // Current Values
+        const currentHSV = rgbToHsv(r, g, b);
+
+        // --- UPDATED FLEXIBLE LOGIC ---
+        // Match ONLY valid criteria (NaN/Null/Undefined are ignored)
+        
+        // Helper to check if a single range is valid (has 2 numbers)
+        const isValidRange = (arr) => arr && arr.length === 2 && !isNaN(arr[0]) && !isNaN(arr[1]) && arr[0] !== null && arr[1] !== null;
+
+        for(let item of candidates) {
+            let isMatch = true; // Assume match, fail if any VALID criteria fails
+            let criteriaCount = 0; // Ensure at least one criteria exists
+
+            // Check RGB
+            if (isValidRange(item.r)) {
+                criteriaCount++;
+                if (r < item.r[0] || r > item.r[1]) isMatch = false;
             }
-            
-            const exportGroup = `
-                <div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1">
-                    ${currentView !== 'users' ? `<button onclick="${currentView === 'history' ? 'exportHistoryXLSX()' : (currentView.includes('dispose') || currentView === 'return_customer' ? `exportDisposeXLSX('${currentView === 'return_customer' ? 'return' : 'dispose'}')` : 'exportItemsXLSX()')}" class="px-3 py-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Export Excel"><i class="fa-solid fa-file-excel text-lg"></i></button><div class="w-px bg-gray-200 my-1"></div>` : ''}
-                    <button onclick="${currentView === 'users' ? 'exportUsersPDF()' : (currentView === 'history' ? 'exportHistoryPDF()' : (currentView.includes('dispose') || currentView === 'return_customer' ? `exportDisposePDF('${currentView === 'return_customer' ? 'return' : 'dispose'}')` : 'exportItemsPDF()'))}" class="px-3 py-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Export PDF"><i class="fa-solid fa-file-pdf text-lg"></i></button>
-                    ${settingsBtn}
-                </div>`;
-
-            if (currentView === 'status') {
-                container.innerHTML = `<h2 class="text-2xl font-bold mb-6 text-slate-800">สถานะตัวอย่างดินทั้งหมด</h2><div class="bg-white p-4 rounded-xl shadow-sm mb-4 flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา (เลขรับ, ชั้น, ผู้เบิก...)" class="w-full p-2 border rounded-lg">${paginationSelect}</div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">สถานะ</th><th class="p-4">ผู้ที่กำลังเบิกไป</th><th class="p-4">พารามิเตอร์</th><th class="p-4">รายงานผลเมื่อ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
-            } else if (currentView === 'items') {
-                if (currentUser.username !== 'admin') { container.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</div>`; return; }
-                container.innerHTML = `<div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4"><div class="flex flex-wrap items-center gap-3 justify-end"><div class="flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40">${paginationSelect}</div>${exportGroup}${canAct ? `<div class="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1"><button onclick="syncExternalData()" class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors" title="อัปเดตข้อมูล"><i class="fa-solid fa-rotate"></i> <span class="hidden sm:inline">อัปเดต</span></button><div class="w-px bg-gray-200 my-1"></div><button onclick="downloadTemplate()" class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="ดาวน์โหลดฟอร์ม"><i class="fa-solid fa-file-arrow-down"></i> <span class="hidden sm:inline">โหลดฟอร์ม</span></button><div class="w-px bg-gray-200 my-1"></div><div class="relative"><button class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"><i class="fa-solid fa-file-import"></i> <span class="hidden sm:inline">นำเข้า</span></button><input type="file" id="import-file" accept=".xlsx, .xls" onchange="handleImport(this)" class="absolute inset-0 opacity-0 cursor-pointer" title="อัปโหลดไฟล์ Excel"></div></div><button onclick="openItemModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2 text-sm font-medium"><i class="fa-solid fa-plus"></i> <span>เพิ่มข้อมูล</span></button><button onclick="deleteSelected('item')" id="btn-delete-items" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md transition-all hidden flex items-center gap-2 text-sm font-medium animate-pulse"><i class="fa-solid fa-trash-can"></i> <span id="selected-count">0</span></button>` : ''}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4 w-10">${canAct ? '<input type="checkbox" onchange="toggleAllItems(this, \'btn-delete-items\')">' : ''}</th><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รับ</th><th class="p-4">การจำหน่ายตัวอย่าง</th><th class="p-4">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
-            } else if (currentView === 'borrow') {
-                container.innerHTML = `<h2 class="text-2xl font-bold mb-6 text-slate-800">ระบบเบิก-คืน ตัวอย่าง</h2><div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-xl shadow-sm h-[600px] flex flex-col"><h3 class="text-lg font-bold mb-4 text-emerald-700 border-b pb-2">เบิกตัวอย่าง (ค้นหา)</h3><div class="mb-4"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="พิมพ์เลขรับ..." class="w-full p-2 border rounded-lg"></div><div class="flex-1 overflow-y-auto pr-2"><table class="w-full text-sm text-left"><thead><tr><th class="pb-2">เลขรับ</th><th class="pb-2">จำนวน</th><th class="pb-2">ชั้น</th><th class="pb-2 text-right">เลือก</th></tr></thead><tbody id="borrow-list-body"></tbody></table></div></div><div class="bg-white p-6 rounded-xl shadow-sm h-fit"><h3 class="text-lg font-bold mb-4 text-blue-700 border-b pb-2">คืนตัวอย่างของฉัน</h3><div class="overflow-y-auto max-h-[500px]"><table class="w-full text-sm text-left"><thead><tr><th class="pb-2">เลขรับ</th><th class="pb-2">จำนวน</th><th class="pb-2 text-right">คืน</th></tr></thead><tbody id="return-list-body"></tbody></table></div></div></div>`;
-            } else if (currentView === 'history') {
-                const isAdmin = currentUser.username === 'admin';
-                container.innerHTML = `<div class="flex justify-between items-center mb-6"><div class="flex gap-2 items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40 mr-2">${paginationSelect}${isAdmin ? `<button onclick="deleteSelected('event')" id="btn-delete-history" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hidden flex items-center gap-2 text-sm font-medium animate-pulse"><i class="fa-solid fa-trash-can"></i> ลบที่เลือก</button>` : ''}${exportGroup}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table id="history-table" class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="p-4 w-10">${isAdmin ? '<input type="checkbox" onchange="toggleAllItems(this, \'btn-delete-history\')">' : ''}</th><th class="p-4">เวลา</th><th class="p-4">รายการ</th><th class="p-4">เลขรับตัวอย่าง</th><th class="p-4">ผู้ดำเนินการ</th><th class="p-4">ชื่อ-สกุล</th><th class="p-4">กลุ่มงาน</th><th class="p-4">หมายเหตุ</th><th class="p-4">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
-            } else if (currentView === 'dispose') {
-                const canAct = currentUser.username === 'admin' || currentUser.canDispose === true;
-                container.innerHTML = `<div class="flex justify-between items-center mb-6"><div class="flex space-x-2"><div class="flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-32">${paginationSelect}</div>${exportGroup}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-orange-50 text-orange-800 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รายงานผล</th><th class="p-4">เกินกำหนด (วัน)</th><th class="p-4">ความต้องการ</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
-            } else if (currentView === 'return_customer') {
-                const canAct = currentUser.username === 'admin' || currentUser.canDispose === true;
-                container.innerHTML = `<div class="flex justify-between items-center mb-6"><div class="flex space-x-2"><div class="flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-32">${paginationSelect}</div>${exportGroup}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-teal-50 text-teal-800 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">จำนวน</th><th class="p-4">ชั้นเก็บ</th><th class="p-4">วันที่รายงานผล</th><th class="p-4">เกินกำหนด (วัน)</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
-            } else if (currentView === 'report') {
-                const canAct = currentUser.username === 'admin' || currentUser.canReport === true;
-                container.innerHTML = `<div class="flex justify-between mb-4 space-x-2"><div class="flex items-center"><input type="text" oninput="handleSearch(this.value)" value="${searchTerm}" placeholder="ค้นหา..." class="p-2 border rounded text-sm w-40">${paginationSelect}</div><div class="flex gap-2">${exportGroup}</div></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-blue-50 text-blue-800 font-semibold border-b"><tr><th class="p-4">เลขรับ</th><th class="p-4">วันที่รับ</th><th class="p-4">พารามิเตอร์</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div><div id="pagination-controls"></div></div>`;
-            } else if (currentView === 'users') {
-                 if (currentUser.username !== 'admin') { container.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</div>`; return; }
-                 container.innerHTML = `<div class="flex justify-end mb-4 gap-2">${exportGroup}</div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-purple-50 text-purple-800 font-semibold border-b"><tr><th class="p-4">Username</th><th class="p-4">ชื่อ</th><th class="p-4">กลุ่ม</th><th class="p-4">สถานะ</th><th class="p-4 text-center">สิทธิ์รายงานผล</th><th class="p-4 text-center">สิทธิ์จัดการข้อมูล</th><th class="p-4 text-center">สิทธิ์จำหน่าย</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-100" id="data-body"></tbody></table></div></div>`;
-            } else if (currentView === 'profile') {
-                container.innerHTML = `<h2 class="text-2xl font-bold mb-6 text-slate-800">ข้อมูลส่วนตัว</h2><div class="bg-white max-w-lg p-6 rounded-xl shadow-sm"><form onsubmit="handleProfileUpdate(event)" class="space-y-4"><div><label class="block text-sm font-medium text-gray-700 mb-1">Username (แก้ไขไม่ได้)</label><input type="text" value="${currentUser.username}" disabled class="w-full p-2 bg-gray-100 border rounded-lg text-gray-500"></div><div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล</label><input type="text" id="edit-name" value="${currentUser.name}" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div><div><label class="block text-sm font-medium text-gray-700 mb-1">กลุ่มงาน</label><select id="edit-group" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500">${DEPARTMENTS.map(g => `<option value="${g}" ${currentUser.group === g ? 'selected' : ''}>${g}</option>`).join('')}</select></div><div><label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่านใหม่ (ว่างไว้ถ้าไม่เปลี่ยน)</label><input type="password" id="edit-pass" placeholder="New Password" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"></div><button type="submit" class="btn-primary w-full">บันทึกการเปลี่ยนแปลง</button></form></div>`;
+            if (isValidRange(item.g)) {
+                criteriaCount++;
+                if (g < item.g[0] || g > item.g[1]) isMatch = false;
             }
-            
-            if(document.getElementById('data-body') || document.getElementById('borrow-list-body')) updateTableData();
-        }
-
-        function updateTableData() {
-            const tbody = document.getElementById('data-body');
-            const borrowBody = document.getElementById('borrow-list-body');
-            const returnBody = document.getElementById('return-list-body');
-            const pagination = document.getElementById('pagination-controls');
-
-            // --- BORROW PAGE LOGIC ---
-            if (currentView === 'borrow') {
-                const availableItems = items.filter(i => i.status === 'Available');
-                const borrowedByMe = items.filter(i => i.status === 'Borrowed' && i.holder === currentUser.username);
-                const filteredAvailable = availableItems.filter(i => !searchTerm || (i.receiptNo||"").toString().toLowerCase().includes(searchTerm) || (i.layer||"").toString().toLowerCase().includes(searchTerm));
-
-                if(borrowBody) borrowBody.innerHTML = filteredAvailable.length === 0 ? '<tr><td colspan="4" class="text-center py-4 text-gray-400">ไม่พบตัวอย่าง</td></tr>' : filteredAvailable.map(i => `
-                <tr class="hover:bg-gray-50"><td class="py-3 font-bold text-gray-700">${i.receiptNo}</td><td class="py-3">${i.qty}</td><td class="py-3 text-gray-500">${i.layer}</td><td class="py-3 text-right"><button onclick="processTransaction('borrow', '${i.id}')" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1 rounded text-xs font-bold transition-colors">เบิก</button></td></tr>`).join('');
-                if(returnBody) returnBody.innerHTML = borrowedByMe.length === 0 ? '<tr><td colspan="3" class="text-center py-4 text-gray-400">ไม่มีรายการค้างส่งคืน</td></tr>' : borrowedByMe.map(i => `
-                <tr class="hover:bg-gray-50"><td class="py-3 font-bold text-gray-700">${i.receiptNo}</td><td class="py-3">${i.qty}</td><td class="py-3 text-right"><button onclick="processTransaction('return', '${i.id}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded text-xs font-bold transition-colors">คืน</button></td></tr>`).join('');
-                return;
+            if (isValidRange(item.b)) {
+                criteriaCount++;
+                if (b < item.b[0] || b > item.b[1]) isMatch = false;
             }
 
-            if(!tbody) return;
-
-            let displayRows = '', totalItems = 0, canAct = false;
-            
-            if(['status', 'items', 'report', 'dispose', 'return_customer'].includes(currentView)) {
-                canAct = currentUser.username === 'admin' || (currentView === 'items' && currentUser.canManage) || (currentView === 'report' && currentUser.canReport) || ((currentView === 'dispose' || currentView === 'return_customer') && currentUser.canDispose);
-                let filtered = items;
-                if(currentView === 'report') filtered = items.filter(i => !i.dateReported);
-                if(currentView === 'dispose') filtered = items.filter(i => i.dateReported && i.disposalStatus !== 'Completed' && calculateDaysRemaining(i.dateReported) >= 60 && i.disposalPref !== 'รับคืน');
-                if(currentView === 'return_customer') filtered = items.filter(i => i.dateReported && i.disposalStatus !== 'Completed' && calculateDaysRemaining(i.dateReported) >= 60 && i.disposalPref === 'รับคืน');
-
-                filtered = filtered.filter(i => {
-                    if (!searchTerm) return true;
-                    const s = searchTerm.toLowerCase();
-                    const receipt = (i.receiptNo || "").toString().toLowerCase();
-                    const layer = (i.layer || "").toString().toLowerCase();
-                    const holder = (i.holder || "").toString().toLowerCase();
-                    return receipt.includes(s) || layer.includes(s) || holder.includes(s);
-                });
-
-                totalItems = filtered.length;
-                const start = (currentPage - 1) * rowsPerPage;
-                const end = rowsPerPage === 10000 ? filtered.length : start + rowsPerPage;
-                const paged = filtered.slice(start, end);
-
-                displayRows = paged.map(item => {
-                    let actions = '', checkbox = '';
-                    if(canAct) {
-                         if(currentView === 'items') {
-                             checkbox = `<input type="checkbox" class="item-checkbox" value="${item.id}" onchange="checkSelection('btn-delete-${currentView}')">`;
-                             actions = `<button onclick='openItemModal(${JSON.stringify(item)})' class="text-blue-500 hover:text-blue-700"><i class="fa-solid fa-edit"></i></button><button onclick="deleteItem('${item.id}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>`;
-                         } else if(currentView === 'report') {
-                             actions = `<button onclick="openReportDateModal('${item.id}', '${item.receiptNo}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded shadow-sm text-xs">ยืนยัน</button>`;
-                         } else if(currentView === 'dispose' || currentView === 'return_customer') {
-                             actions = `<button onclick="handleDisposeItem('${item.id}', '${item.disposalPref}')" class="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded shadow-sm text-xs">ดำเนินการ</button>`;
-                         }
-                    } else actions = '<span class="text-gray-400 text-xs">ไม่มีสิทธิ์</span>';
-
-                    if(currentView === 'status') return `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${item.qty}</td><td class="p-4">${item.layer}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-semibold ${item.status === 'Available' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${item.status === 'Available' ? 'ว่าง' : 'ถูกเบิก'}</span></td><td class="p-4 ${item.status === 'Borrowed' ? 'text-red-600 font-bold' : 'text-gray-400'}">${item.holder}</td><td class="p-4 text-xs text-gray-500">${item.params}</td><td class="p-4 text-xs text-blue-500">${formatDateTh(item.dateReported, false)}</td></tr>`;
-                    
-                    let commonCols = '';
-                    if(currentView === 'items') commonCols = `<td class="p-4">${checkbox}</td><td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${item.qty}</td><td class="p-4">${item.layer}</td><td class="p-4">${formatDateTh(item.dateReceived, false)}</td><td class="p-4 text-xs">${item.disposalPref}</td>`;
-                    else if(currentView === 'report') commonCols = `<td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${formatDateTh(item.dateReceived, false)}</td><td class="p-4 text-xs">${item.params}</td>`;
-                    else if(currentView === 'dispose' || currentView === 'return_customer') { const days = calculateDaysRemaining(item.dateReported); commonCols = `<td class="p-4 font-bold">${item.receiptNo}</td><td class="p-4">${item.qty}</td><td class="p-4">${item.layer}</td><td class="p-4">${formatDateTh(item.dateReported, false)}</td><td class="p-4 text-red-600 font-bold">${days} วัน</td>`; }
-                    return `<tr class="hover:bg-gray-50">${commonCols}<td class="p-4 text-center space-x-2">${actions}</td></tr>`;
-                }).join('');
-
-            } else if (currentView === 'history') {
-                const isAdmin = currentUser.username === 'admin';
-                let filtered = events.filter(e => {
-                    if (!searchTerm) return true;
-                    const s = searchTerm.toLowerCase();
-                    const item = (e.itemName || "").toString().toLowerCase();
-                    const u = (e.user || "").toString().toLowerCase();
-                    return item.includes(s) || u.includes(s);
-                });
-                totalItems = filtered.length;
-                const start = (currentPage - 1) * rowsPerPage;
-                const end = rowsPerPage === 10000 ? filtered.length : start + rowsPerPage;
-                const paged = filtered.slice(start, end);
-                displayRows = paged.map(e => { const userInfo = getUserInfo(e.user); return `<tr class="hover:bg-gray-50"><td class="p-4">${isAdmin ? `<input type="checkbox" class="item-checkbox" value="${e.id}" onchange="checkSelection('btn-delete-history')">` : ''}</td><td class="p-4 whitespace-nowrap">${formatDateTh(e.date)}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs ${e.type === 'Borrow' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}">${e.type === 'Borrow' ? 'เบิกออก' : 'นำคืน'}</span></td><td class="p-4 font-mono">${e.itemName}</td><td class="p-4">${e.user}</td><td class="p-4 text-gray-700">${userInfo.name}</td><td class="p-4 text-gray-500 text-xs">${userInfo.group}</td><td class="p-4 text-gray-400">${e.note || '-'}</td><td class="p-4">${isAdmin ? `<button onclick="deleteEvent('${e.id}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>` : ''}</td></tr>`; }).join('');
-            
-            } else if (currentView === 'users') {
-                displayRows = userList.map(u => `<tr class="hover:bg-gray-50"><td class="p-4 font-bold">${u.username}</td><td class="p-4">${u.name}</td><td class="p-4 text-gray-500">${u.group}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-bold ${u.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${u.status === 'Approved' ? 'อนุมัติแล้ว' : 'รออนุมัติ'}</span></td><td class="p-4 text-center"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" onchange="toggleUserPermission('${u.username}', 'report', this.checked)" class="sr-only peer" ${u.canReport ? 'checked' : ''}><div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div></label></td><td class="p-4 text-center"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" onchange="toggleUserPermission('${u.username}', 'manage', this.checked)" class="sr-only peer" ${u.canManage ? 'checked' : ''}><div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div></label></td><td class="p-4 text-center"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" onchange="toggleUserPermission('${u.username}', 'dispose', this.checked)" class="sr-only peer" ${u.canDispose ? 'checked' : ''}><div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-600"></div></label></td><td class="p-4 text-center space-x-2">${u.status === 'Pending' ? `<button onclick="approveUser('${u.username}')" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded text-xs font-bold hover:bg-emerald-200">อนุมัติ</button>` : ''}<button onclick="deleteUser('${u.username}')" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+            // Check HSV
+            if (isValidRange(item.h)) {
+                criteriaCount++;
+                if (currentHSV.h < item.h[0] || currentHSV.h > item.h[1]) isMatch = false;
+            }
+            if (isValidRange(item.s)) {
+                criteriaCount++;
+                if (currentHSV.s < item.s[0] || currentHSV.s > item.s[1]) isMatch = false;
+            }
+            if (isValidRange(item.v)) {
+                criteriaCount++;
+                if (currentHSV.v < item.v[0] || currentHSV.v > item.v[1]) isMatch = false;
             }
 
-            tbody.innerHTML = displayRows;
-            if(pagination) pagination.innerHTML = renderPagination(totalItems, 'changePage');
+            // Only consider it a match if at least one criteria was checked and all checked passed
+            if (criteriaCount > 0 && isMatch) {
+                match = item;
+                break;
+            }
         }
 
-        // --- BUTTONS ---
-        function openSettingsModal(viewKey) {
-            const settings = docSettings[viewKey] || { footerLeft: '', footerRight: '' };
-            const modalHtml = `
-                <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 animate-[fadeIn_0.2s_ease-out]">
-                        <h3 class="text-xl font-bold mb-4 text-slate-800">ตั้งค่าเอกสาร PDF</h3>
-                        <p class="text-sm text-gray-500 mb-4">สำหรับเมนู: <b>${viewKey}</b></p>
-                        <div class="space-y-3">
-                            <div><label class="block text-sm font-bold text-gray-700 mb-1">ข้อความซ้ายล่าง</label><input type="text" id="footer-left" value="${settings.footerLeft}" class="w-full p-2 border rounded"></div>
-                            <div><label class="block text-sm font-bold text-gray-700 mb-1">ข้อความขวาล่าง</label><input type="text" id="footer-right" value="${settings.footerRight}" class="w-full p-2 border rounded"></div>
-                        </div>
-                        <div class="flex justify-end space-x-2 border-t pt-4 mt-4">
-                            <button onclick="document.getElementById('modal-container').innerHTML=''" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">ยกเลิก</button>
-                            <button onclick="saveSettings('${viewKey}')" class="btn-primary">บันทึก</button>
-                        </div>
-                    </div>
-                </div>`;
-            document.getElementById('modal-container').innerHTML = modalHtml;
+        // Closest Match (Simple Euclidean on RGB for fallback if only RGB exists, or ignore)
+        if (!match) {
+            for(let item of candidates) {
+                if (!isValidRange(item.r)) continue; // Only calc distance if RGB exists
+                const centerR = (item.r[0] + item.r[1]) / 2;
+                const centerG = (item.g[0] + item.g[1]) / 2;
+                const centerB = (item.b[0] + item.b[1]) / 2;
+                const dist = Math.sqrt(Math.pow(r - centerR, 2) + Math.pow(g - centerG, 2) + Math.pow(b - centerB, 2));
+                if(dist < minD) { minD = dist; closest = item; }
+            }
         }
 
-        async function saveSettings(viewKey) {
-            const left = document.getElementById('footer-left').value;
-            const right = document.getElementById('footer-right').value;
-            const newSettings = { footerLeft: left, footerRight: right };
-            
-            showLoading("กำลังบันทึก...");
-            const res = await apiCall('saveSettings', { type: viewKey, settings: newSettings }, false);
-            hideLoading();
-            
-            if(res.status === 'success') {
-                if(!docSettings[viewKey]) docSettings[viewKey] = {};
-                docSettings[viewKey] = newSettings;
-                document.getElementById('modal-container').innerHTML = '';
-                alert('บันทึกเรียบร้อย');
+        const txt = document.getElementById('resultText');
+        const desc = document.getElementById('resultDesc');
+        if (!txt) return;
+        
+        if(match) {
+            txt.innerText = match.level; txt.className = "text-2xl md:text-5xl font-extrabold text-emerald-600"; desc.innerText = "ตรงตามเกณฑ์ (Match)";
+        } else if (closest && minD < 80) { 
+            txt.innerText = closest.level + "*"; txt.className = "text-2xl md:text-5xl font-extrabold text-yellow-600"; desc.innerText = "ค่าใกล้เคียง (Approx)";
+        } else {
+            txt.innerText = "ไม่พบข้อมูล"; txt.className = "text-2xl md:text-5xl font-extrabold text-gray-400"; desc.innerText = "อยู่นอกเหนือช่วงข้อมูล";
+        }
+    }
+
+    function updateInputDisplay() {
+        const rEl = document.getElementById('inputR');
+        if(!rEl) return;
+        const r = rEl.value;
+        const g = document.getElementById('inputG').value;
+        const b = document.getElementById('inputB').value;
+        
+        // Update RGB Display
+        document.getElementById('colorPreview').style.backgroundColor = `rgb(${r},${g},${b})`;
+        
+        // Convert and Update HSV Display
+        const hsv = rgbToHsv(r, g, b);
+        const valH = document.getElementById('valH');
+        const valS = document.getElementById('valS');
+        const valV = document.getElementById('valV');
+        
+        if (valH) valH.innerText = hsv.h + '°';
+        if (valS) valS.innerText = hsv.s + '%';
+        if (valV) valV.innerText = hsv.v + '%';
+        
+        if(myPreferences.useRealTimeAnalysis) analyzeSoil();
+    }
+
+    function updateSystemStatus(isReady) {
+        const dbStatus = document.getElementById('dbStatus');
+        const topRightStatus = document.getElementById('topRightStatus');
+        
+        if (!dbStatus || !topRightStatus) return; // Safety check
+
+        if(isReady) {
+            dbStatus.innerHTML = '<i class="fas fa-check-circle"></i> สถานะ: พร้อมใช้งาน (Cloud Auto-Sync)';
+            dbStatus.className = "text-xs text-yellow-200 mt-2 bg-black/20 px-2 py-1 rounded inline-block";
+            topRightStatus.innerHTML = '<i class="fas fa-check-circle text-green-400 text-2xl drop-shadow-md"></i>';
+        } else {
+            dbStatus.innerHTML = '<i class="fas fa-exclamation-circle"></i> สถานะ: ยังไม่พร้อมใช้งาน (กำลังโหลด...)';
+            dbStatus.className = "text-xs text-red-300 mt-2 bg-black/20 px-2 py-1 rounded inline-block animate-pulse";
+            topRightStatus.innerHTML = '<i class="fas fa-times-circle text-red-500 text-2xl drop-shadow-md"></i>';
+        }
+    }
+    
+    function populateTestTypes() {
+        const select = document.getElementById('testType');
+        select.innerHTML = '';
+        
+        // Default list if pref missing
+        const visibleTypes = myPreferences.visibleTestTypes || ALL_TEST_TYPES;
+        
+        ALL_TEST_TYPES.forEach(type => {
+            if(visibleTypes.includes(type)) {
+                const option = document.createElement('option');
+                option.value = type;
+                option.text = type;
+                select.appendChild(option);
+            }
+        });
+        
+        // If nothing visible, show default
+        if(select.options.length === 0) {
+            const option = document.createElement('option');
+            option.value = "N"; option.text = "Nitrogen (N) - ไนโตรเจน";
+            select.appendChild(option);
+        }
+    }
+
+    // --- SYSTEM INIT ---
+    async function initSystem() { 
+        window.populateCameraList = populateCameraList; 
+        updateSystemStatus(false);
+        await loadUsersList(); 
+        
+        // Auto-load admin data if not logged in (Guest Mode)
+        if (!currentUser) {
+            await loadUserData('admin');
+        }
+
+        setTimeout(() => {
+             if(document.getElementById('inputR')) {
+                 updateInterfaceState();
+                 updateInputDisplay();
+             }
+             populateCameraList();
+             updateSystemStatus(true);
+        }, 500);
+    }
+
+    // ... (User Loading & Storage functions same as before) ...
+    async function loadUsersList() {
+        const storedUsers = await StorageEngine.get('soil_sys_users');
+        if (storedUsers) {
+            const parsed = JSON.parse(storedUsers);
+            if(parsed.users) users = parsed.users;
+            else users = parsed;
+        } else {
+            users = JSON.parse(JSON.stringify(DEFAULT_USERS));
+            StorageEngine.set('soil_sys_users', JSON.stringify({ users: users, timestamp: Date.now() }));
+        }
+    }
+
+    async function loadUserData(username) {
+        // showLoading(true, "กำลังโหลดข้อมูล..."); // Disabled for smoother non-blocking
+        const key = `soil_settings_${username}`;
+        try {
+            const storedStr = await StorageEngine.get(key);
+            let finalData = null;
+            if (storedStr) finalData = JSON.parse(storedStr);
+            if (finalData) {
+                mySoilData = finalData.soilData || [];
+                // Merge preferences safely
+                myPreferences = { ...myPreferences, ...finalData.preferences };
+                if(!myPreferences.visibleTestTypes) myPreferences.visibleTestTypes = [...ALL_TEST_TYPES];
             } else {
-                alert(res.message);
+                mySoilData = JSON.parse(JSON.stringify(DEFAULT_SOIL_DATA));
+                // Only auto-save if admin to initialize
+                if(username === 'admin') saveUserData();
             }
-        }
-
-        async function approveUser(username) { if(!confirm('ยืนยันอนุมัติ?')) return; const res = await apiCall('approveUser', { username: username }); if(res.status === 'success') { alert('เรียบร้อย'); router('users'); } else { alert(res.message); } }
-        async function toggleUserPermission(username, type, isChecked) { const res = await apiCall('toggleUserPermission', { username: username, type: type, value: isChecked }); if(res.status !== 'success') { alert(res.message); router('users'); } }
-        async function deleteUser(username) { if(!confirm('ยืนยันลบ?')) return; const res = await apiCall('deleteUser', { username: username }); if(res.status === 'success') { router('users'); } else { alert(res.message); } }
-        function openReportDateModal(id, receiptNo) { const today = new Date().toISOString().split('T')[0]; document.getElementById('modal-container').innerHTML = `<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 animate-[fadeIn_0.2s_ease-out]"><h3 class="text-xl font-bold mb-4 text-blue-700">ยืนยันการรายงานผล</h3><p class="text-sm text-gray-600 mb-4">เลขรับ: <b>${receiptNo}</b></p><div class="mb-4"><label class="block text-sm font-bold text-gray-700 mb-1">เลือกวันที่</label><input type="date" id="report-date-picker" value="${today}" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"></div><div class="flex justify-end space-x-2 border-t pt-4"><button onclick="document.getElementById('modal-container').innerHTML=''" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">ยกเลิก</button><button onclick="confirmReport('${id}')" class="btn-primary bg-blue-600 hover:bg-blue-700">ยืนยัน</button></div></div></div>`; }
-        async function confirmReport(id) { const date = document.getElementById('report-date-picker').value; if(!date) return alert("กรุณาเลือกวันที่"); document.getElementById('modal-container').innerHTML = ''; const res = await apiCall('reportItem', { id: id, date: date }); if(res.status === 'success') { alert('เรียบร้อย'); await refreshData(); router('report'); } else { alert(res.message); } }
-        async function handleDisposeItem(id, pref) { if(!confirm(`ยืนยันการดำเนินการ (${pref === 'รับคืน' ? 'คืนเจ้าของ' : 'ทิ้ง'})?`)) return; const res = await apiCall('disposeItem', { id: id }); if(res.status === 'success') { alert('เรียบร้อย'); await refreshData(); router(currentView); } else { alert(res.message); } }
-        async function deleteItem(id) { if (!confirm('ยืนยันที่จะลบรายการนี้?')) return; const res = await apiCall('deleteItem', { id }); if (res.status === 'success') { await refreshData(); router(currentView); } }
-        async function deleteEvent(id) { if (!confirm('ยืนยันที่จะลบประวัตินี้?')) return; const res = await apiCall('deleteEvent', { id }); if (res.status === 'success') { await refreshData(); router('history'); } }
-        function toggleAllItems(source, btnId = 'btn-delete-selected') { const checkboxes = document.querySelectorAll('.item-checkbox'); checkboxes.forEach(cb => cb.checked = source.checked); checkSelection(btnId); }
-        function checkSelection(btnId = 'btn-delete-selected') { const checkedCount = document.querySelectorAll('.item-checkbox:checked').length; const btn = document.getElementById(btnId); if(btn) { if(checkedCount > 0) btn.classList.remove('hidden'); else btn.classList.add('hidden'); } }
-        async function deleteSelected(type) { const checked = document.querySelectorAll('.item-checkbox:checked'); if(checked.length === 0) return; if(!confirm(`ยืนยันการลบ ${checked.length} รายการที่เลือก?`)) return; showLoading(`กำลังลบ ${checked.length} รายการ...`); let successCount = 0; for(let cb of checked) { if(type === 'event') await apiCall('deleteEvent', { id: cb.value }, false); else await apiCall('deleteItem', { id: cb.value }, false); successCount++; } hideLoading(); alert(`ลบเสร็จสิ้น ${successCount} รายการ`); await refreshData(); router(currentView); }
-        function downloadTemplate() { const wb = XLSX.utils.book_new(); const ws_data = [["เลขรับ", "จำนวนตัวอย่าง", "วันที่รับ", "ชั้นวาง", "พารามิเตอร์", "การจำหน่ายตัวอย่าง"], ["S-67001", 1, "2024-01-20", "A1", "pH, EC", "รับคืน"], ["S-67002", 5, "2024-01-20", "B2", "N, P, K", "ทิ้ง"]]; const ws = XLSX.utils.aoa_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "Template"); XLSX.writeFile(wb, "Soil_Sample_Template.xlsx"); }
-        function exportHistoryXLSX() { if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } const wb = XLSX.utils.book_new(); const ws_data = events.map(e => { const info = getUserInfo(e.user); return { "เวลา": formatDateForPDF(e.date), "ประเภทรายการ": e.type === 'Borrow' ? 'เบิกออก' : 'นำคืน', "เลขรับตัวอย่าง": e.itemName, "ผู้ดำเนินการ (User)": e.user, "ชื่อ-สกุล": info.name, "กลุ่มงาน": info.group, "หมายเหตุ": e.note }; }); const ws = XLSX.utils.json_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "Report"); XLSX.writeFile(wb, "History_Report.xlsx"); }
-        function exportItemsXLSX() { if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } const wb = XLSX.utils.book_new(); const ws_data = items.map(i => ({ "เลขรับ": i.receiptNo, "จำนวน": i.qty, "ชั้นเก็บ": i.layer, "วันที่รับ": formatDateTh(i.dateReceived, false), "พารามิเตอร์": i.params, "การจำหน่ายตัวอย่าง": i.disposalPref, "สถานะ": i.status })); const ws = XLSX.utils.json_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "SoilItems"); XLSX.writeFile(wb, "Soil_Samples_List.xlsx"); }
-        function exportItemsPDF() { 
-            if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } 
-            const { jsPDF } = window.jspdf; const doc = new jsPDF(); 
-            const settings = docSettings['items'] || { footerLeft: '', footerRight: '' };
-            loadThaiFont(doc).then(() => { 
-                doc.text("Soil Samples List", 14, 20); doc.setFontSize(10); doc.text(`Generated on ${formatDateForPDF(new Date().toISOString())}`, 14, 30); 
-                const tableColumn = ["Sample No", "Qty", "Layer", "Date", "Status"]; 
-                const tableRows = items.map(i => [i.receiptNo, i.qty, i.layer, formatDateForPDF(i.dateReceived), i.status]); 
-                doc.autoTable({ 
-                    head: [tableColumn], body: tableRows, startY: 40, styles: { font: 'Sarabun', fontStyle: 'normal' },
-                    didDrawPage: function (data) {
-                        doc.setFontSize(10);
-                        doc.text('Page ' + doc.internal.getNumberOfPages(), 195, 10, { align: 'right' });
-                        const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
-                        if(settings.footerLeft) doc.text(settings.footerLeft, 14, pageHeight - 10);
-                        if(settings.footerRight) doc.text(settings.footerRight, 195, pageHeight - 10, { align: 'right' });
-                    }
-                }); 
-                doc.save("soil-items-list.pdf"); 
-            }); 
-        }
-
-        // Export Users Function (Fix)
-        function exportUsersPDF() {
-             if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } 
-             const { jsPDF } = window.jspdf; const doc = new jsPDF(); 
-             const settings = docSettings['users'] || { footerLeft: '', footerRight: '' };
-             loadThaiFont(doc).then(() => { 
-                doc.text("User Management Report", 14, 20); doc.setFontSize(10); doc.text(`Generated on ${formatDateForPDF(new Date().toISOString())}`, 14, 30); 
-                const tableColumn = ["Username", "Name", "Group", "Status"]; 
-                const tableRows = userList.map(u => [u.username, u.name, u.group, u.status]); 
-                doc.autoTable({ 
-                    head: [tableColumn], body: tableRows, startY: 40, styles: { font: 'Sarabun', fontStyle: 'normal' },
-                    didDrawPage: function (data) {
-                        doc.setFontSize(10);
-                        doc.text('Page ' + doc.internal.getNumberOfPages(), 195, 10, {align:'right'});
-                        const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
-                        if(settings.footerLeft) doc.text(settings.footerLeft, 14, pageHeight - 10);
-                        if(settings.footerRight) doc.text(settings.footerRight, 195, pageHeight - 10, { align: 'right' });
-                    }
-                }); 
-                doc.save("user-report.pdf"); 
-            }); 
-        }
-
-        function exportDisposeXLSX(type) { 
-            if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } 
-            let overdueItems = [];
-            if(type === 'return') overdueItems = items.filter(i => i.dateReported && i.disposalStatus !== 'Completed' && calculateDaysRemaining(i.dateReported) >= 60 && i.disposalPref === 'รับคืน');
-            else overdueItems = items.filter(i => i.dateReported && i.disposalStatus !== 'Completed' && calculateDaysRemaining(i.dateReported) >= 60 && i.disposalPref !== 'รับคืน');
-            
-            const wb = XLSX.utils.book_new(); 
-            const ws_data = overdueItems.map(i => ({ "เลขรับ": i.receiptNo, "จำนวน": i.qty, "ชั้นเก็บ": i.layer, "วันที่รายงานผล": formatDateForPDF(i.dateReported), "เกินกำหนด(วัน)": calculateDaysRemaining(i.dateReported) })); 
-            const ws = XLSX.utils.json_to_sheet(ws_data); 
-            XLSX.utils.book_append_sheet(wb, ws, "List"); 
-            XLSX.writeFile(wb, `${type === 'return' ? 'Return_List' : 'Disposal_List'}.xlsx`); 
-        }
-        function exportDisposePDF(type) { 
-            if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } 
-            let overdueItems = [];
-            let settingsKey = 'dispose';
-            if(type === 'return') {
-                overdueItems = items.filter(i => i.dateReported && i.disposalStatus !== 'Completed' && calculateDaysRemaining(i.dateReported) >= 60 && i.disposalPref === 'รับคืน');
-                settingsKey = 'return_customer';
-            } else {
-                overdueItems = items.filter(i => i.dateReported && i.disposalStatus !== 'Completed' && calculateDaysRemaining(i.dateReported) >= 60 && i.disposalPref !== 'รับคืน');
-            }
-
-            const { jsPDF } = window.jspdf; const doc = new jsPDF(); 
-            const settings = docSettings[settingsKey] || { footerLeft: '', footerRight: '' };
-
-            loadThaiFont(doc).then(() => { 
-                doc.text(type === 'return' ? "Return Samples Report" : "Disposal List Report", 14, 20); 
-                doc.setFontSize(10); doc.text(`Generated on ${formatDateForPDF(new Date().toISOString())}`, 14, 30); 
-                const tableColumn = ["Sample No", "Qty", "Layer", "Report Date", "Overdue (Days)"]; 
-                const tableRows = overdueItems.map(i => [i.receiptNo, i.qty, i.layer, formatDateForPDF(i.dateReported), calculateDaysRemaining(i.dateReported)]); 
-                doc.autoTable({ 
-                    head: [tableColumn], body: tableRows, startY: 40, styles: { font: 'Sarabun', fontStyle: 'normal' },
-                    didDrawPage: function (data) {
-                        doc.setFontSize(10);
-                        doc.text('Page ' + doc.internal.getNumberOfPages(), 195, 10, { align: 'right' });
-                        const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
-                        if(settings.footerLeft) doc.text(settings.footerLeft, 14, pageHeight - 10);
-                        if(settings.footerRight) doc.text(settings.footerRight, 195, pageHeight - 10, { align: 'right' });
-                    } 
-                }); 
-                doc.save(`${type === 'return' ? 'return-report' : 'disposal-report'}.pdf`); 
-            }); 
-        }
-        function exportStatusXLSX() { if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } const wb = XLSX.utils.book_new(); const ws_data = items.map(i => ({ "เลขรับ": i.receiptNo, "จำนวน": i.qty, "ชั้นเก็บ": i.layer, "สถานะ": i.status, "ผู้เบิก": i.holder, "พารามิเตอร์": i.params, "วันที่รายงาน": formatDateTh(i.dateReported, false) })); const ws = XLSX.utils.json_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "Status"); XLSX.writeFile(wb, "Status_Report.xlsx"); }
-        function exportStatusPDF() { if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } const { jsPDF } = window.jspdf; const doc = new jsPDF(); const settings = docSettings['status'] || { footerLeft: '', footerRight: '' }; loadThaiFont(doc).then(() => { doc.text("Status Report", 14, 20); doc.setFontSize(10); doc.text(`Generated on ${formatDateForPDF(new Date().toISOString())}`, 14, 30); const tableColumn = ["Sample No", "Qty", "Layer", "Status", "Holder", "Params"]; const tableRows = items.map(i => [i.receiptNo, i.qty, i.layer, i.status, i.holder, i.params]); doc.autoTable({ head: [tableColumn], body: tableRows, startY: 40, styles: { font: 'Sarabun', fontStyle: 'normal' }, didDrawPage: function(d){ doc.text('Page '+doc.internal.getNumberOfPages(), 195, 10, {align:'right'}); if(settings.footerLeft) doc.text(settings.footerLeft, 14, 280); if(settings.footerRight) doc.text(settings.footerRight, 195, 280, {align:'right'}); } }); doc.save("status-report.pdf"); }); }
-        function exportReportXLSX() { if (typeof XLSX === 'undefined') { alert('Library Excel ยังไม่พร้อมใช้งาน'); return; } const filtered = items.filter(i => !i.dateReported); const wb = XLSX.utils.book_new(); const ws_data = filtered.map(i => ({ "เลขรับ": i.receiptNo, "วันที่รับ": formatDateTh(i.dateReceived, false), "พารามิเตอร์": i.params })); const ws = XLSX.utils.json_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "PendingReport"); XLSX.writeFile(wb, "Pending_Analysis_Report.xlsx"); }
-        function exportReportPDF() { if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } const filtered = items.filter(i => !i.dateReported); const { jsPDF } = window.jspdf; const doc = new jsPDF(); const settings = docSettings['report'] || { footerLeft: '', footerRight: '' }; loadThaiFont(doc).then(() => { doc.text("Pending Analysis Report", 14, 20); doc.setFontSize(10); doc.text(`Generated on ${formatDateForPDF(new Date().toISOString())}`, 14, 30); const tableColumn = ["Sample No", "Date Received", "Params"]; const tableRows = filtered.map(i => [i.receiptNo, formatDateForPDF(i.dateReceived), i.params]); doc.autoTable({ head: [tableColumn], body: tableRows, startY: 40, styles: { font: 'Sarabun', fontStyle: 'normal' }, didDrawPage: function(d){ doc.text('Page '+doc.internal.getNumberOfPages(), 195, 10, {align:'right'}); if(settings.footerLeft) doc.text(settings.footerLeft, 14, 280); if(settings.footerRight) doc.text(settings.footerRight, 195, 280, {align:'right'}); } }); doc.save("pending-analysis-report.pdf"); }); }
-        function exportHistoryPDF() { if (!window.jspdf) { alert('Library PDF ยังไม่พร้อมใช้งาน'); return; } const { jsPDF } = window.jspdf; const doc = new jsPDF('l'); const settings = docSettings['history'] || { footerLeft: '', footerRight: '' }; loadThaiFont(doc).then(() => { doc.text("History Report", 14, 20); doc.setFontSize(10); doc.text(`Generated by: ${currentUser.username} on ${formatDateForPDF(new Date().toISOString())}`, 14, 30); const tableColumn = ["Time", "Type", "Sample No", "User", "Name", "Group"]; const tableRows = events.map(e => { const info = getUserInfo(e.user); return [formatDateForPDF(e.date), e.type === 'Borrow' ? 'Borrow' : 'Return', e.itemName, e.user, info.name, info.group]; }); doc.autoTable({ head: [tableColumn], body: tableRows, startY: 40, styles: { font: 'Sarabun', fontStyle: 'normal' }, didDrawPage: function(d){ doc.text('Page '+doc.internal.getNumberOfPages(), 285, 10, {align:'right'}); if(settings.footerLeft) doc.text(settings.footerLeft, 14, 200); if(settings.footerRight) doc.text(settings.footerRight, 285, 200, {align:'right'}); } }); doc.save("history-report.pdf"); }); }
-
-        async function openSettingsModal(viewKey) {
-            const settings = docSettings[viewKey] || { footerLeft: '', footerRight: '' };
-            const modalHtml = `
-                <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 animate-[fadeIn_0.2s_ease-out]">
-                        <h3 class="text-xl font-bold mb-4 text-slate-800">ตั้งค่าเอกสาร PDF</h3>
-                        <p class="text-sm text-gray-500 mb-4">สำหรับเมนู: <b>${viewKey}</b></p>
-                        <div class="space-y-3">
-                            <div><label class="block text-sm font-bold text-gray-700 mb-1">ข้อความซ้ายล่าง</label><input type="text" id="footer-left" value="${settings.footerLeft}" class="w-full p-2 border rounded"></div>
-                            <div><label class="block text-sm font-bold text-gray-700 mb-1">ข้อความขวาล่าง</label><input type="text" id="footer-right" value="${settings.footerRight}" class="w-full p-2 border rounded"></div>
-                        </div>
-                        <div class="flex justify-end space-x-2 border-t pt-4 mt-4">
-                            <button onclick="document.getElementById('modal-container').innerHTML=''" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">ยกเลิก</button>
-                            <button onclick="saveSettings('${viewKey}')" class="btn-primary">บันทึก</button>
-                        </div>
-                    </div>
-                </div>`;
-            document.getElementById('modal-container').innerHTML = modalHtml;
-        }
-
-        async function saveSettings(viewKey) {
-            const left = document.getElementById('footer-left').value;
-            const right = document.getElementById('footer-right').value;
-            const newSettings = { footerLeft: left, footerRight: right };
-            
-            showLoading("กำลังบันทึก...");
-            const res = await apiCall('saveSettings', { type: viewKey, settings: newSettings }, false);
-            hideLoading();
-            
-            if(res.status === 'success') {
-                if(!docSettings[viewKey]) docSettings[viewKey] = {};
-                docSettings[viewKey] = newSettings;
-                document.getElementById('modal-container').innerHTML = '';
-                alert('บันทึกเรียบร้อย');
-            } else {
-                alert(res.message);
-            }
+        } catch (e) {
+            console.error("Load Error", e);
+            mySoilData = JSON.parse(JSON.stringify(DEFAULT_SOIL_DATA));
         }
         
-        async function handleSaveItem(e, id) { e.preventDefault(); const newItem = { id: id, receiptNo: document.getElementById('m-receipt').value, dateReceived: document.getElementById('m-date').value, qty: document.getElementById('m-qty').value, layer: "'" + document.getElementById('m-layer').value, params: document.getElementById('m-params').value, disposalPref: document.getElementById('m-pref').value }; const action = id ? 'editItem' : 'addItem'; const res = await apiCall(action, { item: newItem }); if (res.status === 'success') { document.getElementById('modal-container').innerHTML = ''; await refreshData(); router('items'); } else { alert(res.message); } }
-        async function syncExternalData() { const url = SECONDARY_DB_URL; if(!confirm("ยืนยันการอัปเดตข้อมูลจาก Database สำรอง?")) return; showLoading("กำลังซิงค์ข้อมูล..."); const res = await apiCall('syncExternalData', { url: url }, false); hideLoading(); alert(res.message); if(res.status === 'success') { await refreshData(); router('items'); } }
-        async function processTransaction(type, itemId) { if (!itemId) return alert('รหัสสินค้าไม่ถูกต้อง'); const action = type === 'borrow' ? 'borrowItem' : 'returnItem'; const res = await apiCall(action, { itemId: itemId, username: currentUser.username }); if (res.status === 'success') { alert(type === 'borrow' ? 'เบิกสำเร็จ' : 'คืนสำเร็จ'); await refreshData(); router('borrow'); } else { alert(res.message); } }
-        async function handleProfileUpdate(e) { e.preventDefault(); const pass = document.getElementById('edit-pass').value; const updateData = { username: currentUser.username, name: document.getElementById('edit-name').value, group: document.getElementById('edit-group').value, password: pass ? pass : currentUser.password }; const res = await apiCall('updateProfile', updateData); if(res.status === 'success') { currentUser.name = updateData.name; currentUser.group = updateData.group; if(pass) currentUser.password = pass; localStorage.setItem('soilAppUser', JSON.stringify(currentUser)); alert('แก้ไขข้อมูลสำเร็จ'); updateNavUser(); } }
+        // Apply settings after load
+        populateTestTypes();
+    }
 
-        window.onload = init;
-    </script>
+    // New "Optimistic Save" Logic:
+    // Update local -> Render -> Trigger Cloud Save without awaiting
+    async function saveUserData() {
+        // If guest, don't save to cloud unless it's initial admin load
+        const targetUser = currentUser ? currentUser.username : 'admin';
+        // Guest mode read-only check can be here if needed
+        
+        const key = `soil_settings_${targetUser}`;
+        const payload = {
+            timestamp: Date.now(),
+            soilData: mySoilData,
+            preferences: myPreferences
+        };
+        const strPayload = JSON.stringify(payload);
+        
+        localStorage.setItem(key, strPayload);
+        
+        // Fire and forget, show status
+        showSyncBadge(true);
+        StorageEngine.set(key, strPayload)
+        .then(() => { setTimeout(() => showSyncBadge(false), 2000); })
+        .catch(() => showToast("บันทึก Cloud ล้มเหลว (ใช้ในเครื่อง)", "error"));
+    }
+    
+    async function saveSystemUsers() {
+        showLoading(true, "กำลังบันทึกข้อมูลผู้ใช้...");
+        const payload = { users: users, timestamp: Date.now() };
+        await StorageEngine.set('soil_sys_users', JSON.stringify(payload));
+        showLoading(false);
+    }
+
+    // ... (UI Helper functions) ...
+    function showLoading(show, text="กำลังประมวลผล...") {
+        const overlay = document.getElementById('loadingOverlay');
+        const txt = document.getElementById('loadingText');
+        if(txt) txt.innerText = text;
+        if(show) overlay.classList.remove('hidden');
+        else overlay.classList.add('hidden');
+    }
+    
+    function showSyncBadge(show, text="กำลังบันทึกข้อมูล...") {
+        const badge = document.getElementById('syncBadge');
+        if(show) {
+            badge.innerHTML = `<i class="fas fa-sync fa-spin"></i> ${text}`;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    
+    function showToast(message, type="success") {
+        const toast = document.getElementById('statusToast');
+        const icon = document.getElementById('toastIcon');
+        const msg = document.getElementById('toastMessage');
+        toast.className = `status-toast show ${type === 'error' ? 'bg-red-800' : 'bg-gray-800'}`;
+        icon.innerHTML = type === 'error' ? '<i class="fas fa-exclamation-circle text-red-400"></i>' : '<i class="fas fa-check-circle text-green-400"></i>';
+        msg.innerText = message;
+        toast.style.display = 'flex';
+        setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    }
+
+    // --- CALIBRATION FUNCTIONS (NEW) ---
+    function calibrateSystem() {
+        if (lastRawRGB.r === 0 && lastRawRGB.g === 0 && lastRawRGB.b === 0) {
+            alert("กรุณาเปิดกล้องหรืออัปโหลดภาพก่อนทำการ Calibrate");
+            return;
+        }
+
+        calibrationOffsets.r = 255 - lastRawRGB.r;
+        calibrationOffsets.g = 255 - lastRawRGB.g;
+        calibrationOffsets.b = 255 - lastRawRGB.b;
+
+        const avgRaw = (lastRawRGB.r + lastRawRGB.g + lastRawRGB.b) / 3;
+        const percent = Math.round((avgRaw / 255) * 100);
+        let statusMsg = "";
+        let statusColor = "";
+
+        if (percent > 95) {
+            statusMsg = `แสงดีมาก (${percent}%) - สว่างเพียงพอ`;
+            statusColor = "text-green-600";
+        } else if (percent > 80) {
+            statusMsg = `แสงปานกลาง (${percent}%) - ชดเชยเล็กน้อย`;
+            statusColor = "text-yellow-600";
+        } else {
+            statusMsg = `แสงน้อย (${percent}%) - ระบบชดเชยแสงให้แล้ว`;
+            statusColor = "text-red-600";
+        }
+
+        document.getElementById('calibrationStatus').innerHTML = `<strong>Status:</strong> Calibrated (R+${calibrationOffsets.r}, G+${calibrationOffsets.g}, B+${calibrationOffsets.b})`;
+        const lightEl = document.getElementById('lightQualityStatus');
+        lightEl.innerText = statusMsg;
+        lightEl.className = "text-xs font-bold mt-1 " + statusColor;
+
+        showToast("Calibrate สำเร็จ! ค่าแสงถูกชดเชยแล้ว");
+        updateInputDisplay(); 
+    }
+
+    function resetCalibration() {
+        calibrationOffsets = { r: 0, g: 0, b: 0 };
+        document.getElementById('calibrationStatus').innerText = "สถานะ: ยังไม่ได้ Calibrate (ใช้ค่าดิบ)";
+        document.getElementById('lightQualityStatus').innerText = "คุณภาพแสง: รอการวัด...";
+        document.getElementById('lightQualityStatus').className = "text-xs font-bold mt-1 text-gray-500";
+        showToast("รีเซ็ตค่าแสงแล้ว");
+    }
+
+    // --- TABLE ACTIONS (FAST UI) ---
+    function saveRange() {
+        const fields = ['newType', 'newLevel', 
+            'newRMin', 'newRMax', 'newGMin', 'newGMax', 'newBMin', 'newBMax',
+            'newHMin', 'newHMax', 'newSMin', 'newSMax', 'newVMin', 'newVMax'
+        ];
+        
+        const vals = {};
+        fields.forEach(id => vals[id] = document.getElementById(id).value);
+        
+        if(!vals.newType || !vals.newLevel) { alert("กรุณาระบุ Type และ Level"); return; }
+        
+        // Construct New Data
+        const newData = {
+            type: vals.newType,
+            level: vals.newLevel
+        };
+
+        // Add RGB if valid
+        if(vals.newRMin !== "") {
+            newData.r = [parseInt(vals.newRMin), parseInt(vals.newRMax)];
+            newData.g = [parseInt(vals.newGMin), parseInt(vals.newGMax)];
+            newData.b = [parseInt(vals.newBMin), parseInt(vals.newBMax)];
+        }
+
+        // Add HSV if valid
+        if(vals.newHMin !== "") {
+            newData.h = [parseInt(vals.newHMin), parseInt(vals.newHMax)];
+            newData.s = [parseInt(vals.newSMin), parseInt(vals.newSMax)];
+            newData.v = [parseInt(vals.newVMin), parseInt(vals.newVMax)];
+        }
+
+        if(editIndex >= 0) { mySoilData[editIndex] = newData; } else { mySoilData.push(newData); }
+        cancelEdit(); renderConfigTable(); saveUserData();
+    }
+
+    function removeRange(i) {
+        if(confirm("ยืนยันลบข้อมูลแถวนี้?")) {
+            if(editIndex === i) cancelEdit();
+            mySoilData.splice(i, 1);
+            renderConfigTable(); saveUserData();
+        }
+    }
+
+    // --- IMPORT EXCEL (FIXED) ---
+    function triggerImportXLSX() { document.getElementById('xlsxFileInput').click(); }
+    function handleImportXLSX(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        if (typeof XLSX === 'undefined') { alert("กำลังโหลดไลบรารี Excel..."); return; }
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
+                const newData = [];
+                for(let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    if(row && row.length >= 8) { 
+                        // Enhanced Import to include HSV if present (assuming columns 8-13)
+                        const entry = {
+                            type: String(row[0] || "Unknown"), level: String(row[1] || "Unknown")
+                        };
+                        // RGB
+                        if(row[2] !== undefined && row[2] !== "" && row[2] !== null) {
+                             entry.r = [parseInt(row[2]), parseInt(row[3])];
+                             entry.g = [parseInt(row[4]), parseInt(row[5])];
+                             entry.b = [parseInt(row[6]), parseInt(row[7])];
+                        }
+                        // HSV (Optional - Cols 8-13)
+                        if(row[8] !== undefined && row[8] !== "" && row[8] !== null) {
+                            entry.h = [parseInt(row[8]), parseInt(row[9])];
+                            entry.s = [parseInt(row[10]), parseInt(row[11])];
+                            entry.v = [parseInt(row[12]), parseInt(row[13])];
+                        }
+                        newData.push(entry);
+                    }
+                }
+                if(newData.length > 0) {
+                    if(confirm(`พบข้อมูล ${newData.length} รายการ ต้องการนำเข้า?`)) {
+                        mySoilData = newData; renderConfigTable(); saveUserData(); alert("นำเข้าเรียบร้อย");
+                    }
+                } else { alert("ไม่พบข้อมูล"); }
+            } catch (err) { alert("ไฟล์ไม่ถูกต้อง"); }
+        };
+        reader.readAsArrayBuffer(file);
+        event.target.value = '';
+    }
+    
+    // --- EXPORT ---
+    function exportXLSX() {
+        if(!mySoilData || mySoilData.length === 0) { alert("ไม่มีข้อมูล"); return; }
+        const ws_data = [["Type", "Level", "R_Min", "R_Max", "G_Min", "G_Max", "B_Min", "B_Max", "H_Min", "H_Max", "S_Min", "S_Max", "V_Min", "V_Max"]];
+        mySoilData.forEach(d => { 
+            const row = [d.type, d.level];
+            if(d.r) row.push(d.r[0], d.r[1], d.g[0], d.g[1], d.b[0], d.b[1]);
+            else row.push("", "", "", "", "", "");
+            
+            if(d.h) row.push(d.h[0], d.h[1], d.s[0], d.s[1], d.v[0], d.v[1]);
+            else row.push("", "", "", "", "", "");
+            
+            ws_data.push(row);
+        });
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "SoilData");
+        XLSX.writeFile(wb, "soil_data.xlsx");
+    }
+
+    // --- RENDER & EDIT ---
+    function renderConfigTable() {
+        const tbody = document.getElementById('configTableBody');
+        if(!tbody) return;
+        tbody.innerHTML = '';
+        mySoilData.forEach((d, i) => {
+            const rgbStr = d.r ? `${d.r[0]}-${d.r[1]}` : '-';
+            const hsvStr = d.h ? `${d.h[0]}-${d.h[1]}` : '-';
+            
+            tbody.innerHTML += `
+            <tr class="bg-white border-b hover:bg-gray-50 text-xs">
+                <td class="px-3 py-2 font-bold">${d.type}</td>
+                <td class="px-3 py-2">${d.level}</td>
+                
+                <td class="px-1 py-2 text-center text-red-600 bg-red-50">${d.r ? d.r[0]+'-'+d.r[1] : ''}</td>
+                <td class="px-1 py-2 text-center text-green-600 bg-green-50">${d.g ? d.g[0]+'-'+d.g[1] : ''}</td>
+                <td class="px-1 py-2 text-center text-blue-600 bg-blue-50">${d.b ? d.b[0]+'-'+d.b[1] : ''}</td>
+                
+                <td class="px-1 py-2 text-center text-indigo-600 bg-indigo-50 border-l">${d.h ? d.h[0]+'-'+d.h[1] : ''}</td>
+                <td class="px-1 py-2 text-center text-indigo-600 bg-indigo-50">${d.s ? d.s[0]+'-'+d.s[1] : ''}</td>
+                <td class="px-1 py-2 text-center text-indigo-600 bg-indigo-50">${d.v ? d.v[0]+'-'+d.v[1] : ''}</td>
+                
+                <td class="px-3 py-2 text-center flex gap-1 justify-center">
+                    <button onclick="startEdit(${i})" class="text-blue-500 mr-2"><i class="fas fa-edit"></i></button>
+                    <button onclick="removeRange(${i})" class="text-red-500"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>`;
+        });
+    }
+
+    function startEdit(index) {
+        editIndex = index;
+        const item = mySoilData[index];
+        const fields = ['newType', 'newLevel', 'newRMin', 'newRMax', 'newGMin', 'newGMax', 'newBMin', 'newBMax', 'newHMin', 'newHMax', 'newSMin', 'newSMax', 'newVMin', 'newVMax'];
+        
+        document.getElementById('newType').value = item.type;
+        document.getElementById('newLevel').value = item.level;
+        
+        if(item.r) {
+            document.getElementById('newRMin').value = item.r[0]; document.getElementById('newRMax').value = item.r[1];
+            document.getElementById('newGMin').value = item.g[0]; document.getElementById('newGMax').value = item.g[1];
+            document.getElementById('newBMin').value = item.b[0]; document.getElementById('newBMax').value = item.b[1];
+        } else {
+             ['newRMin', 'newRMax', 'newGMin', 'newGMax', 'newBMin', 'newBMax'].forEach(id => document.getElementById(id).value = '');
+        }
+
+        if(item.h) {
+            document.getElementById('newHMin').value = item.h[0]; document.getElementById('newHMax').value = item.h[1];
+            document.getElementById('newSMin').value = item.s[0]; document.getElementById('newSMax').value = item.s[1];
+            document.getElementById('newVMin').value = item.v[0]; document.getElementById('newVMax').value = item.v[1];
+        } else {
+             ['newHMin', 'newHMax', 'newSMin', 'newSMax', 'newVMin', 'newVMax'].forEach(id => document.getElementById(id).value = '');
+        }
+
+        document.getElementById('formTitle').innerText = `แก้ไขข้อมูลแถวที่ ${index + 1}`;
+        document.getElementById('btnSaveRange').innerHTML = '<i class="fas fa-save"></i> บันทึกแก้ไข';
+        document.getElementById('btnSaveRange').className = "bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 text-sm flex-1";
+        document.getElementById('btnCancelEdit').classList.remove('hidden');
+        document.getElementById('formTitle').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function cancelEdit() {
+        editIndex = -1;
+        document.getElementById('formTitle').innerText = 'เพิ่มช่วงสีใหม่';
+        document.getElementById('btnSaveRange').innerHTML = '<i class="fas fa-plus"></i> เพิ่มข้อมูล';
+        document.getElementById('btnSaveRange').className = "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm flex-1";
+        document.getElementById('btnCancelEdit').classList.add('hidden');
+        const fields = ['newType', 'newLevel', 'newRMin', 'newRMax', 'newGMin', 'newGMax', 'newBMin', 'newBMax', 'newHMin', 'newHMax', 'newSMin', 'newSMax', 'newVMin', 'newVMax'];
+        fields.forEach(id => document.getElementById(id).value = '');
+    }
+    
+    // --- ADMIN SETTINGS RENDER ---
+    function renderAdminSettings() {
+        const container = document.getElementById('settingsContainer');
+        container.innerHTML = '';
+        
+        // 1. Visible Test Types
+        ALL_TEST_TYPES.forEach(type => {
+            const div = document.createElement('div');
+            div.className = "flex items-center";
+            const checked = myPreferences.visibleTestTypes.includes(type) ? 'checked' : '';
+            div.innerHTML = `
+                <input type="checkbox" id="chk_${type}" class="w-4 h-4 text-emerald-600 rounded" ${checked} onchange="toggleTestTypeVisibility('${type}')">
+                <label for="chk_${type}" class="ml-2 text-sm text-gray-700">${type}</label>
+            `;
+            container.appendChild(div);
+        });
+
+        // Separator
+        const hr = document.createElement('hr');
+        hr.className = "my-2 border-yellow-200";
+        container.appendChild(hr);
+
+        // 2. RGB Adjust Visibility
+        const divRGB = document.createElement('div');
+        divRGB.className = "flex items-center";
+        divRGB.innerHTML = `
+            <input type="checkbox" id="chk_showRGBAdjust" class="w-4 h-4 text-emerald-600 rounded" ${myPreferences.showRGBAdjust ? 'checked' : ''} onchange="toggleSectionVisibility('showRGBAdjust')">
+            <label for="chk_showRGBAdjust" class="ml-2 text-sm text-gray-700 font-bold">แสดงส่วนปรับแต่ง RGB</label>
+        `;
+        container.appendChild(divRGB);
+
+        // 3. Calibration Visibility
+        const divCalib = document.createElement('div');
+        divCalib.className = "flex items-center";
+        divCalib.innerHTML = `
+            <input type="checkbox" id="chk_showCalibration" class="w-4 h-4 text-emerald-600 rounded" ${myPreferences.showCalibration ? 'checked' : ''} onchange="toggleSectionVisibility('showCalibration')">
+            <label for="chk_showCalibration" class="ml-2 text-sm text-gray-700 font-bold">แสดงส่วน Calibration</label>
+        `;
+        container.appendChild(divCalib);
+    }
+
+    function toggleTestTypeVisibility(type) {
+        if(myPreferences.visibleTestTypes.includes(type)) {
+            myPreferences.visibleTestTypes = myPreferences.visibleTestTypes.filter(t => t !== type);
+        } else {
+            myPreferences.visibleTestTypes.push(type);
+        }
+        saveUserData();
+        populateTestTypes();
+    }
+
+    function toggleSectionVisibility(settingKey) {
+        myPreferences[settingKey] = !myPreferences[settingKey];
+        saveUserData();
+        updateInterfaceState();
+    }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        const u = document.getElementById('username').value;
+        const p = document.getElementById('password').value;
+        showLoading(true, "ตรวจสอบสิทธิ์...");
+        await loadUsersList(); showLoading(false);
+        const foundUser = users.find(user => user.username === u && user.password === p);
+        if (foundUser) performLogin(foundUser); else document.getElementById('loginError').classList.remove('hidden');
+    }
+
+    async function performLogin(user) {
+        currentUser = user;
+        await loadUserData(user.username);
+        document.getElementById('login-panel').classList.add('hidden');
+        document.getElementById('admin-panel').classList.remove('hidden');
+        document.getElementById('userInfoDisplay').classList.remove('hidden');
+        document.getElementById('loggedInUser').innerText = `👤 ${user.username}`;
+        const userManageBtn = document.getElementById('menu-user-manage');
+        if (user.role === 'admin') userManageBtn.classList.remove('hidden'); else userManageBtn.classList.add('hidden');
+        document.getElementById('toggleBrightness').checked = myPreferences.showBrightness;
+        document.getElementById('toggleRealTime').checked = myPreferences.useRealTimeAnalysis;
+        toggleBrightnessSetting(false);
+        toggleRealTimeSetting(false);
+        populateCameraList();
+        renderConfigTable();
+        renderUserTable();
+        // Render Settings checkboxes
+        renderAdminSettings();
+        
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
+        document.getElementById('loginError').classList.add('hidden');
+    }
+
+    function logout() {
+        if(isCameraActive) stopCameraStream();
+        currentUser = null;
+        updateSystemStatus(false);
+        loadUserData('admin').then(() => { updateInputDisplay(); renderConfigTable(); updateSystemStatus(true); });
+        document.getElementById('userInfoDisplay').classList.add('hidden');
+        if(!document.getElementById('tab-config').classList.contains('hidden')) {
+            document.getElementById('admin-panel').classList.add('hidden');
+            document.getElementById('login-panel').classList.remove('hidden');
+        }
+        switchTab('analyze');
+    }
+
+    function switchAdminTab(subTab) {
+        if (subTab === 'user-manage' && (!currentUser || currentUser.role !== 'admin')) { alert("เฉพาะ Admin เท่านั้น"); return; }
+        ['admin-color-config', 'admin-user-manage', 'admin-change-pass'].forEach(id => document.getElementById(id).classList.add('hidden'));
+        ['menu-color-config', 'menu-user-manage', 'menu-change-pass'].forEach(id => document.getElementById(id).className = "w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600");
+        document.getElementById('admin-' + subTab).classList.remove('hidden');
+        document.getElementById('menu-' + subTab).className = "w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-emerald-700 bg-white shadow";
+        
+        if(subTab === 'color-config') renderAdminSettings();
+    }
+
+    async function toggleBrightnessSetting(save=true) {
+        const val = document.getElementById('toggleBrightness').checked;
+        const div = document.getElementById('brightnessContainer');
+        if(div) { if(val) div.classList.remove('hidden'); else div.classList.add('hidden'); }
+        if(save && currentUser) { myPreferences.showBrightness = val; saveUserData(); }
+    }
+
+    function updateInterfaceState() {
+        const btn = document.getElementById('btnManualAnalyze');
+        const statusTxt = document.getElementById('autoAnalyzeStatus');
+        
+        // Visibility Toggles
+        const rgbSection = document.getElementById('rgbAdjustSection');
+        const calibSection = document.getElementById('calibrationSection');
+        if(rgbSection) rgbSection.style.display = myPreferences.showRGBAdjust !== false ? 'block' : 'none';
+        if(calibSection) calibSection.style.display = myPreferences.showCalibration !== false ? 'block' : 'none';
+
+        if(!btn || !statusTxt) return;
+        if (myPreferences.useRealTimeAnalysis) { btn.classList.add('hidden'); statusTxt.innerText = ""; analyzeSoil(); } 
+        else { btn.classList.remove('hidden'); statusTxt.innerText = ""; }
+        const checkbox = document.getElementById('toggleRealTime');
+        if(checkbox) checkbox.checked = myPreferences.useRealTimeAnalysis;
+        
+        populateTestTypes();
+    }
+
+    async function toggleRealTimeSetting(save=true) {
+        const isChecked = document.getElementById('toggleRealTime').checked;
+        if(save && currentUser) {
+            myPreferences.useRealTimeAnalysis = isChecked;
+            await executeWithSaving(async()=>{});
+        } else {
+             myPreferences.useRealTimeAnalysis = isChecked;
+        }
+        updateInterfaceState();
+    }
+    
+    function updateCameraSelection() {
+        if(currentUser) {
+            myPreferences.selectedCameraId = document.getElementById('cameraSelect').value;
+            saveUserData(); 
+        }
+    }
+
+    function renderUserTable() {
+        const tbody = document.getElementById('userTableBody');
+        tbody.innerHTML = '';
+        users.forEach((u, i) => {
+            tbody.innerHTML += `<tr class="border-b hover:bg-gray-50"><td class="px-4 py-2 font-medium">${u.username}</td><td class="px-4 py-2 text-xs">${u.role}</td><td class="px-4 py-2 text-right">${u.username !== 'admin' ? `<button onclick="deleteUser(${i})" class="text-red-500"><i class="fas fa-trash"></i></button>` : ''}</td></tr>`;
+        });
+    }
+
+    async function addUser() {
+        const u = document.getElementById('newUsername').value;
+        const p = document.getElementById('newPassword').value;
+        if(u && p) {
+            if(users.some(x => x.username === u)) { alert("ชื่อซ้ำ"); return; }
+            users.push({ id: Date.now(), username: u, password: p, role: 'user' });
+            await saveSystemUsers();
+            renderUserTable(); alert("เพิ่มสำเร็จ");
+        }
+    }
+
+    async function deleteUser(i) {
+        if(confirm("ลบผู้ใช้?")) {
+            users.splice(i, 1);
+            await saveSystemUsers();
+            renderUserTable();
+        }
+    }
+
+    async function changePassword() {
+        const p1 = document.getElementById('changeNewPass').value;
+        const p2 = document.getElementById('changeConfirmPass').value;
+        if(p1 !== p2 || p1.length < 3) { alert("รหัสผ่านไม่ถูกต้อง"); return; }
+        const idx = users.findIndex(u => u.username === currentUser.username);
+        if(idx !== -1) {
+            users[idx].password = p1;
+            await saveSystemUsers();
+            alert("เปลี่ยนรหัสผ่านสำเร็จ");
+        }
+    }
+
+    function switchTab(selectedTab) {
+        if(selectedTab === 'config' && !currentUser) {
+            document.getElementById('tab-analyze').classList.add('hidden');
+            document.getElementById('tab-config').classList.remove('hidden');
+            document.getElementById('login-panel').classList.remove('hidden');
+            document.getElementById('admin-panel').classList.add('hidden');
+        } else if (selectedTab === 'config') {
+            document.getElementById('tab-analyze').classList.add('hidden');
+            document.getElementById('tab-config').classList.remove('hidden');
+            document.getElementById('login-panel').classList.add('hidden');
+            document.getElementById('admin-panel').classList.remove('hidden');
+        } else {
+            document.getElementById('tab-analyze').classList.remove('hidden');
+            document.getElementById('tab-config').classList.add('hidden');
+        }
+        ['analyze', 'config'].forEach(tab => {
+            const btn = document.getElementById('btn-'+tab);
+            if(tab === selectedTab) btn.className="flex-1 py-3 text-emerald-600 border-b-2 border-emerald-600 font-bold focus:outline-none transition";
+            else btn.className="flex-1 py-3 text-gray-500 hover:text-emerald-500 font-medium focus:outline-none transition";
+        });
+    }
+
+    function toggleCamera() {
+        const container = document.getElementById('mediaContainer');
+        const video = document.getElementById('videoElement');
+        const img = document.getElementById('imagePreview');
+        const btnFlip = document.getElementById('btnFlipCamera');
+
+        if (isCameraActive) {
+            stopCameraStream();
+            container.classList.add('hidden');
+            btnFlip.classList.add('hidden');
+        } else {
+            container.classList.remove('hidden');
+            img.classList.add('hidden');
+            btnFlip.classList.remove('hidden');
+            let constraints = { video: { facingMode: currentFacingMode } };
+            if (myPreferences.selectedCameraId) constraints.video = { deviceId: { exact: myPreferences.selectedCameraId } };
+            navigator.mediaDevices.getUserMedia(constraints).then(stream => {
+                videoStream = stream;
+                video.srcObject = stream;
+                isCameraActive = true;
+                video.onloadedmetadata = () => drawVideoToCanvasLoop();
+            }).catch(e => alert("Camera Error: " + e));
+        }
+    }
+
+    function switchCamera(e) {
+        if(e) e.stopPropagation();
+        if(!isCameraActive) return;
+        currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+        stopCameraStream();
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode } }).then(stream => {
+            videoStream = stream;
+            document.getElementById('videoElement').srcObject = stream;
+            isCameraActive = true;
+            drawVideoToCanvasLoop();
+        });
+    }
+
+    function stopCameraStream() {
+        if(videoStream) videoStream.getTracks().forEach(t => t.stop());
+        isCameraActive = false;
+    }
+
+    function drawVideoToCanvasLoop() {
+        if(!isCameraActive) return;
+        const vid = document.getElementById('videoElement');
+        const cvs = document.getElementById('canvasElement');
+        const ctx = cvs.getContext('2d');
+        if(vid.readyState === vid.HAVE_ENOUGH_DATA) {
+            if(cvs.width !== vid.videoWidth) { cvs.width = vid.videoWidth; cvs.height = vid.videoHeight; }
+            ctx.drawImage(vid, 0, 0);
+            if(markerPosition) processAreaColor(cvs, markerPosition.x, markerPosition.y);
+            // Center Reticle Logic
+            else if (!isAnalysisPaused) {
+                 const rect = cvs.getBoundingClientRect();
+                 processAreaColor(cvs, rect.width/2 + rect.left, rect.height/2 + rect.top);
+            }
+        }
+        requestAnimationFrame(drawVideoToCanvasLoop);
+    }
+
+    function handleMediaClick(e) {
+        if(e.target.closest('button')) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        markerPosition = { x: e.clientX, y: e.clientY };
+        const marker = document.getElementById('colorMarker');
+        marker.style.display = 'block';
+        marker.style.left = (e.clientX - rect.left) + 'px';
+        marker.style.top = (e.clientY - rect.top) + 'px';
+        if(!isCameraActive) processAreaColor(document.getElementById('canvasElement'), e.clientX, e.clientY);
+    }
+
+    function processAreaColor(cvs, cx, cy) {
+        if (isCameraActive && isAnalysisPaused) return; // Respect pause
+
+        const rect = cvs.getBoundingClientRect();
+        const scaleX = cvs.width / rect.width;
+        const scaleY = cvs.height / rect.height;
+        const sx = Math.floor(((cx - rect.left) * scaleX) - 15);
+        const sy = Math.floor(((cy - rect.top) * scaleY) - 15);
+        try {
+            const data = cvs.getContext('2d').getImageData(sx, sy, 30, 30).data;
+            let r=0, g=0, b=0, c=0;
+            for(let i=0; i<data.length; i+=4) { r+=data[i]; g+=data[i+1]; b+=data[i+2]; c++; }
+            if(c>0) {
+                // Apply Calibration Offset
+                lastRawRGB = { r: Math.round(r/c), g: Math.round(g/c), b: Math.round(b/c) };
+                
+                // Clamp values 0-255
+                let finalR = Math.min(255, Math.max(0, lastRawRGB.r + calibrationOffsets.r));
+                let finalG = Math.min(255, Math.max(0, lastRawRGB.g + calibrationOffsets.g));
+                let finalB = Math.min(255, Math.max(0, lastRawRGB.b + calibrationOffsets.b));
+
+                document.getElementById('inputR').value = finalR;
+                document.getElementById('inputG').value = finalG;
+                document.getElementById('inputB').value = finalB;
+                document.getElementById('valBrightness').innerText = Math.round(((finalR)*299 + (finalG)*587 + (finalB)*114)/1000);
+                updateInputDisplay();
+            }
+        } catch(e){}
+    }
+    
+    function triggerFileUpload() { document.getElementById('fileInput').click(); }
+    
+    function handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        if (isCameraActive) toggleCamera(); 
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.getElementById('imagePreview');
+            img.src = e.target.result;
+            document.getElementById('mediaContainer').classList.remove('hidden');
+            document.getElementById('btnFlipCamera').classList.add('hidden');
+            img.classList.remove('hidden');
+            document.getElementById('colorMarker').style.display = 'none';
+            markerPosition = null;
+            img.onload = function() {
+                const canvas = document.getElementById('canvasElement');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                canvas.getContext('2d').drawImage(img, 0, 0);
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // PDF GENERATION 
+    async function generatePDFReport() {
+        showLoading(true, "กำลังสร้างรายงาน PDF...");
+        const now = new Date();
+        document.getElementById('reportDate').innerText = now.toLocaleString('th-TH');
+        document.getElementById('reportUser').innerText = currentUser ? currentUser.username : 'Guest';
+        document.getElementById('reportResultLevel').innerText = document.getElementById('resultText').innerText;
+        document.getElementById('reportResultType').innerText = document.getElementById('testType').value;
+        document.getElementById('reportR').innerText = document.getElementById('inputR').value;
+        document.getElementById('reportG').innerText = document.getElementById('inputG').value;
+        document.getElementById('reportB').innerText = document.getElementById('inputB').value;
+        
+        // ADD HSV REPORTING
+        const hsv = rgbToHsv(document.getElementById('inputR').value, document.getElementById('inputG').value, document.getElementById('inputB').value);
+        document.getElementById('reportH').innerText = hsv.h + '°';
+        document.getElementById('reportS').innerText = hsv.s + '%';
+        document.getElementById('reportV').innerText = hsv.v + '%';
+
+        document.getElementById('reportBrightness').innerText = document.getElementById('valBrightness').innerText;
+        
+        const mediaContainer = document.getElementById('mediaContainer');
+        const video = document.getElementById('videoElement');
+        const imgEl = document.getElementById('imagePreview');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const w = mediaContainer.offsetWidth;
+        const h = mediaContainer.offsetHeight;
+        canvas.width = w;
+        canvas.height = h;
+        if (!imgEl.classList.contains('hidden')) { ctx.drawImage(imgEl, 0, 0, w, h); } else { ctx.drawImage(video, 0, 0, w, h); }
+        if (markerPosition) {
+             const marker = document.getElementById('colorMarker');
+             const left = parseFloat(marker.style.left) || w/2;
+             const top = parseFloat(marker.style.top) || h/2;
+             ctx.strokeStyle = '#00ff00';
+             ctx.lineWidth = 3;
+             ctx.strokeRect(left - 15, top - 15, 30, 30);
+        }
+        document.getElementById('reportImage').src = canvas.toDataURL('image/jpeg');
+        const template = document.getElementById('reportTemplate');
+        template.classList.remove('hidden');
+        try {
+            const canvasReport = await html2canvas(template, { scale: 2 });
+            const imgData = canvasReport.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvasReport.height * pdfWidth) / canvasReport.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Soil_Report_${now.getTime()}.pdf`);
+            showToast("สร้างรายงาน PDF สำเร็จ");
+        } catch(err) {
+            console.error(err);
+            alert("เกิดข้อผิดพลาดในการสร้าง PDF");
+        } finally {
+            template.classList.add('hidden');
+            showLoading(false);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSystem();
+    });
+
+</script>
 </body>
 </html>
