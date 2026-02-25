@@ -3,7 +3,7 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>ระบบบริหารจัดการตัวอย่างดินเพื่องานวิเคราะห์ดินในห้องปฏิบัติการ กลุ่มวิจัยเคมีดิน</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -35,7 +35,7 @@
         .item-checkbox { width: 1.2rem; height: 1.2rem; cursor: pointer; accent-color: #10b981; }
     </style>
 </head>
-<body class="text-gray-800 h-screen flex overflow-hidden">
+<body class="text-gray-800 h-[100dvh] w-full flex overflow-hidden">
 
     <div id="mobile-overlay" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden" onclick="toggleSidebar()"></div>
 
@@ -55,7 +55,7 @@
     </aside>
 
     <main class="flex-1 flex flex-col overflow-hidden relative w-full">
-        <header class="bg-white shadow-sm p-4 flex justify-between items-center z-20">
+        <header class="bg-white shadow-sm p-4 flex justify-between items-center z-20 shrink-0">
             <div id="header-title" class="font-bold text-emerald-700 text-lg md:text-xl truncate">Soilsheif Pro System</div>
             <button onclick="toggleSidebar()" class="text-gray-600 p-2 rounded hover:bg-gray-100 md:hidden"><i class="fa-solid fa-bars text-xl"></i></button>
         </header>
